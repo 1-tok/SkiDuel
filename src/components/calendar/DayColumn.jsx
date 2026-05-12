@@ -1,29 +1,27 @@
-import React from 'react';
-import { Droppable, Draggable } from '@hello-pangea/dnd';
-import { format, parseISO, isSameDay, isToday } from 'date-fns';
+import React, { useRef, useState, useCallback } from 'react';
+import { Droppable } from '@hello-pangea/dnd';
+import { format, parseISO, isSameDay, isToday, addMinutes } from 'date-fns';
 import CalendarEvent from './CalendarEvent';
 
 const HOUR_HEIGHT = 60; // px per hour
 
-export default function DayColumn({ date, events, workStart = 9, workEnd = 18, showDateHeader = false }) {
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+export default function DayColumn({ date, events, workStart = 9, workEnd = 18, showDateHeader = false, onUpdateEvent }) {
+  const containerRef = useRef(null);
+  const [draggingEvent, setDraggingEvent] = useState(null); // { event, offsetMinutes, ghostTop }
+  const dragState = useRef(null);
+
   const dayEvents = events.filter(e => isSameDay(parseISO(e.start_time), date));
   const today = isToday(date);
 
   // Compute side-by-side columns for overlapping events
   const getEventLayouts = (evts) => {
-    // Sort by start time
     const sorted = [...evts].sort((a, b) => parseISO(a.start_time) - parseISO(b.start_time));
-
-    // Group into overlapping clusters
-    const columns = []; // each entry: { event, col, totalCols }
-    const colEndTimes = []; // track end time of last event in each column
+    const columns = [];
+    const colEndTimes = [];
 
     for (const event of sorted) {
       const start = parseISO(event.start_time);
       const end = parseISO(event.end_time);
-
-      // Find a column where this event doesn't overlap
       let placed = false;
       for (let c = 0; c < colEndTimes.length; c++) {
         if (start >= colEndTimes[c]) {
@@ -39,7 +37,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
       }
     }
 
-    const totalCols = colEndTimes.length;
+    const totalCols = colEndTimes.length || 1;
     return columns.map(({ event, col }) => ({ event, col, totalCols }));
   };
 
@@ -61,6 +59,76 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
   const now = new Date();
   const currentTimeTop = today ? ((now.getHours() * 60 + now.getMinutes()) / 60) * HOUR_HEIGHT : null;
 
+  // Snap minutes to nearest 15
+  const snapMinutes = (minutes) => Math.round(minutes / 15) * 15;
+
+  const getMinutesFromY = useCallback((y) => {
+    if (!containerRef.current) return 0;
+    const scrollContainer = containerRef.current.closest('.overflow-y-auto');
+    const scrollTop = scrollContainer?.scrollTop ?? 0;
+    const rect = containerRef.current.getBoundingClientRect();
+    const relY = y - rect.top + scrollTop;
+    return Math.max(0, Math.min(23 * 60 + 59, (relY / HOUR_HEIGHT) * 60));
+  }, []);
+
+  const handleEventMouseDown = (e, event) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const start = parseISO(event.start_time);
+    const startMinutes = start.getHours() * 60 + start.getMinutes();
+    const clickedMinutes = getMinutesFromY(e.clientY);
+    const offsetMinutes = clickedMinutes - startMinutes;
+
+    dragState.current = {
+      event,
+      offsetMinutes,
+    };
+
+    setDraggingEvent({ event, ghostTop: (startMinutes / 60) * HOUR_HEIGHT });
+
+    const onMouseMove = (moveE) => {
+      const currentMinutes = getMinutesFromY(moveE.clientY);
+      const newStartMinutes = snapMinutes(currentMinutes - dragState.current.offsetMinutes);
+      const clampedStart = Math.max(0, Math.min(23 * 60, newStartMinutes));
+      setDraggingEvent(prev => ({ ...prev, ghostTop: (clampedStart / 60) * HOUR_HEIGHT }));
+    };
+
+    const onMouseUp = (upE) => {
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onMouseUp);
+
+      if (!dragState.current) return;
+
+      const currentMinutes = getMinutesFromY(upE.clientY);
+      const newStartMinutes = snapMinutes(currentMinutes - dragState.current.offsetMinutes);
+      const clampedStart = Math.max(0, Math.min(23 * 60, newStartMinutes));
+
+      const origStart = parseISO(dragState.current.event.start_time);
+      const origEnd = parseISO(dragState.current.event.end_time);
+      const durationMs = origEnd - origStart;
+
+      // Build new start on the same date
+      const newStart = new Date(date);
+      newStart.setHours(Math.floor(clampedStart / 60), clampedStart % 60, 0, 0);
+      const newEnd = new Date(newStart.getTime() + durationMs);
+
+      onUpdateEvent && onUpdateEvent(dragState.current.event.id, {
+        start_time: newStart.toISOString(),
+        end_time: newEnd.toISOString(),
+        date: format(newStart, 'yyyy-MM-dd'),
+      });
+
+      dragState.current = null;
+      setDraggingEvent(null);
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  };
+
+  const hours = Array.from({ length: 24 }, (_, i) => i);
+
   return (
     <div className="flex-1 min-w-0">
       {showDateHeader && (
@@ -74,9 +142,12 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
       <Droppable droppableId={`calendar-${format(date, 'yyyy-MM-dd')}`} type="TASK">
         {(provided, snapshot) => (
           <div
-            ref={provided.innerRef}
+            ref={(el) => {
+              provided.innerRef(el);
+              containerRef.current = el;
+            }}
             {...provided.droppableProps}
-            className={`relative ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
+            className={`relative select-none ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
             style={{ height: `${24 * HOUR_HEIGHT}px` }}
           >
             {/* Hour lines */}
@@ -84,8 +155,8 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
               <div
                 key={hour}
                 className={`absolute left-0 right-0 border-t ${
-                  hour >= workStart && hour < workEnd 
-                    ? 'border-border/60 bg-transparent' 
+                  hour >= workStart && hour < workEnd
+                    ? 'border-border/60 bg-transparent'
                     : 'border-border/30 bg-muted/30'
                 }`}
                 style={{ top: `${hour * HOUR_HEIGHT}px`, height: `${HOUR_HEIGHT}px` }}
@@ -103,28 +174,27 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
             )}
 
             {/* Events */}
-            {eventLayouts.map(({ event, col, totalCols }, index) => (
-              <Draggable key={event.id} draggableId={`event-${event.id}`} index={index}>
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.draggableProps}
-                    {...provided.dragHandleProps}
-                    style={{
-                      ...provided.draggableProps.style,
-                      ...(snapshot.isDragging ? {} : getEventStyle(event, col, totalCols))
-                    }}
-                    className={snapshot.isDragging ? '' : 'absolute'}
-                  >
-                    <CalendarEvent
-                      event={event}
-                      isDragging={snapshot.isDragging}
-                      style={snapshot.isDragging ? {} : { position: 'relative', left: 0, right: 0, width: '100%' }}
-                    />
-                  </div>
-                )}
-              </Draggable>
-            ))}
+            {eventLayouts.map(({ event, col, totalCols }) => {
+              const isDraggingThis = draggingEvent?.event?.id === event.id;
+              const style = getEventStyle(event, col, totalCols);
+              const top = isDraggingThis ? `${draggingEvent.ghostTop}px` : style.top;
+
+              return (
+                <div
+                  key={event.id}
+                  onMouseDown={(e) => handleEventMouseDown(e, event)}
+                  style={{ ...style, top, zIndex: isDraggingThis ? 50 : 10 }}
+                  className={`absolute transition-none ${isDraggingThis ? 'opacity-80 shadow-xl ring-2 ring-primary/30 rounded-lg' : ''}`}
+                >
+                  <CalendarEvent
+                    event={event}
+                    isDragging={isDraggingThis}
+                    style={{ position: 'relative', left: 0, right: 0, width: '100%', height: '100%' }}
+                  />
+                </div>
+              );
+            })}
+
             {provided.placeholder}
           </div>
         )}

@@ -5,7 +5,7 @@ import DayColumn from './DayColumn';
 
 const HOUR_HEIGHT = 60;
 
-export default function CalendarPanel({ events, settings }) {
+export default function CalendarPanel({ events, settings, onUpdateEvent }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('day');
   const scrollRef = useRef(null);
@@ -54,6 +54,7 @@ export default function CalendarPanel({ events, settings }) {
               events={events}
               workStart={workStart}
               workEnd={workEnd}
+              onUpdateEvent={onUpdateEvent}
             />
           ) : (
             weekDays.map(day => (
@@ -64,6 +65,7 @@ export default function CalendarPanel({ events, settings }) {
                 workStart={workStart}
                 workEnd={workEnd}
                 showDateHeader
+                onUpdateEvent={onUpdateEvent}
               />
             ))
           )}

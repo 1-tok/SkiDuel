@@ -298,7 +298,11 @@ export default function Dashboard() {
           {/* Panel */}
           <div className="flex-1 overflow-hidden">
             {view === 'calendar' ? (
-              <CalendarPanel events={events} settings={settings} />
+              <CalendarPanel
+                events={events}
+                settings={settings}
+                onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
+              />
             ) : (
               <KanbanPanel events={events} />
             )}
