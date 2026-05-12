@@ -1,14 +1,19 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Check, Calendar, Mail, GripVertical } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import EmailModal from './EmailModal';
 
 export default function EmailCard({ email, onMarkRead, onSchedule, isDragging }) {
+  const [modalOpen, setModalOpen] = useState(false);
+
   const timeStr = email.timestamp 
     ? format(parseISO(email.timestamp), 'h:mm a') 
     : '';
 
   return (
+    <>
     <div
+      onClick={() => !isDragging && setModalOpen(true)}
       className={`group relative bg-card rounded-lg border border-border p-3 transition-all duration-200 cursor-grab active:cursor-grabbing ${
         isDragging ? 'shadow-lg scale-105 opacity-90 ring-2 ring-primary/30' : 'hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5'
       }`}
@@ -42,5 +47,13 @@ export default function EmailCard({ email, onMarkRead, onSchedule, isDragging })
         </button>
       </div>
     </div>
+    <EmailModal
+      email={email}
+      open={modalOpen}
+      onClose={() => setModalOpen(false)}
+      onMarkRead={onMarkRead}
+      onSchedule={onSchedule}
+    />
+    </>
   );
 }
