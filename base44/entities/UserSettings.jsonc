@@ -14,7 +14,7 @@
     },
     "default_event_duration": {
       "type": "number",
-      "default": 30,
+      "default": 10,
       "description": "Default event duration in minutes"
     },
     "include_weekends": {
