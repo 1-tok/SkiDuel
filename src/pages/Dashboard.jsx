@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { format, parseISO, isSameDay, isBefore } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, CalendarDays, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -17,6 +17,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [followUpEvent, setFollowUpEvent] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [view, setView] = useState('calendar'); // 'calendar' | 'board'
   const followUpTimersRef = useRef({});
 
   // Initial sync on mount
@@ -72,7 +73,7 @@ export default function Dashboard() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['events'] }),
   });
 
-  // Follow-up timer: check for events that just ended
+  // Follow-up timer
   useEffect(() => {
     const interval = setInterval(() => {
       const now = new Date();
@@ -85,22 +86,18 @@ export default function Dashboard() {
             setFollowUpEvent(event);
           }
         });
-    }, 30000); // Check every 30 seconds
-
+    }, 30000);
     return () => clearInterval(interval);
   }, [events]);
 
-  // Handle email mark as read
   const handleMarkRead = useCallback((email) => {
     updateEmail.mutate({ id: email.id, data: { is_read: true, is_actioned: true } });
   }, [updateEmail]);
 
-  // Handle email schedule to next slot
   const handleScheduleEmail = useCallback((email) => {
     const today = new Date();
     const slot = findNextAvailableSlot(events, today, settings);
     if (!slot) return;
-
     createEvent.mutate({
       title: email.subject,
       description: `From: ${email.sender}\n${email.preview}`,
@@ -117,7 +114,6 @@ export default function Dashboard() {
     updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
   }, [events, settings, createEvent, updateEmail]);
 
-  // Handle follow-up modal actions
   const handleFollowUpAction = useCallback((event, action, followUpText) => {
     if (action === 'completed') {
       updateEvent.mutate({ id: event.id, data: { status: 'completed', kanban_column: 'done' } });
@@ -125,7 +121,6 @@ export default function Dashboard() {
       updateEvent.mutate({ id: event.id, data: { status: 'cancelled', kanban_column: 'cancelled' } });
     } else if (action === 'needs_followup') {
       updateEvent.mutate({ id: event.id, data: { status: 'completed', kanban_column: 'done' } });
-      // Create follow-up task
       const slot = findNextAvailableSlot(events, new Date(), settings);
       if (slot) {
         createEvent.mutate({
@@ -145,14 +140,11 @@ export default function Dashboard() {
     }
   }, [events, settings, updateEvent, createEvent]);
 
-  // Drag and drop handler
   const handleDragEnd = useCallback((result) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
-
     const today = new Date();
 
-    // Email dragged to calendar or kanban
     if (draggableId.startsWith('email-')) {
       const emailId = draggableId.replace('email-', '');
       const email = emails.find(e => e.id === emailId);
@@ -162,7 +154,6 @@ export default function Dashboard() {
         const targetDate = destination.droppableId.replace('calendar-', '');
         const slot = findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
         if (!slot) return;
-
         createEvent.mutate({
           title: email.subject,
           description: `From: ${email.sender}\n${email.preview}`,
@@ -182,7 +173,6 @@ export default function Dashboard() {
         const isToday = column === 'doing';
         const slot = findNextAvailableSlot(events, today, settings, isToday);
         if (!slot) return;
-
         createEvent.mutate({
           title: email.subject,
           description: `From: ${email.sender}\n${email.preview}`,
@@ -201,7 +191,6 @@ export default function Dashboard() {
       return;
     }
 
-    // Event dragged between kanban columns or calendar
     if (draggableId.startsWith('event-')) {
       const eventId = draggableId.replace('event-', '');
       const event = events.find(e => e.id === eventId);
@@ -210,14 +199,12 @@ export default function Dashboard() {
       if (destination.droppableId.startsWith('kanban-')) {
         const targetColumn = destination.droppableId.replace('kanban-', '');
         const updates = { kanban_column: targetColumn };
-
         if (targetColumn === 'done') {
           updates.status = 'completed';
         } else if (targetColumn === 'cancelled') {
           updates.status = 'cancelled';
         } else if (targetColumn === 'doing') {
           updates.status = 'scheduled';
-          // Move to next slot today
           const slot = findNextAvailableSlot(events, today, settings, true);
           if (slot) {
             updates.start_time = slot.start_time;
@@ -226,7 +213,6 @@ export default function Dashboard() {
           }
         } else if (targetColumn === 'todo') {
           updates.status = 'scheduled';
-          // Move to next future slot
           const tomorrow = new Date();
           tomorrow.setDate(tomorrow.getDate() + 1);
           const slot = findNextAvailableSlot(events, tomorrow, settings);
@@ -236,7 +222,6 @@ export default function Dashboard() {
             updates.date = slot.date;
           }
         }
-
         updateEvent.mutate({ id: event.id, data: updates });
       } else if (destination.droppableId.startsWith('calendar-')) {
         const targetDate = destination.droppableId.replace('calendar-', '');
@@ -261,26 +246,64 @@ export default function Dashboard() {
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <div className="h-screen flex overflow-hidden bg-background">
-        {/* Sync button */}
-        <div className="fixed top-3 right-[340px] z-50">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleSync}
-            disabled={syncing}
-            className="h-7 gap-1.5 text-xs bg-card shadow-sm"
-          >
-            <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
-            {syncing ? 'Syncing…' : 'Sync'}
-          </Button>
-        </div>
         <GmailSidebar
           emails={emails}
           onMarkRead={handleMarkRead}
           onSchedule={handleScheduleEmail}
         />
-        <CalendarPanel events={events} settings={settings} />
-        <KanbanPanel events={events} />
+
+        {/* Main area with toggle */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Toggle bar */}
+          <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card">
+            <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
+              <button
+                onClick={() => setView('calendar')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  view === 'calendar'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <CalendarDays className="w-3.5 h-3.5" />
+                Calendar
+              </button>
+              <button
+                onClick={() => setView('board')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  view === 'board'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                Board
+              </button>
+            </div>
+
+            <div className="ml-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleSync}
+                disabled={syncing}
+                className="h-7 gap-1.5 text-xs"
+              >
+                <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+                {syncing ? 'Syncing…' : 'Sync'}
+              </Button>
+            </div>
+          </div>
+
+          {/* Panel */}
+          <div className="flex-1 overflow-hidden">
+            {view === 'calendar' ? (
+              <CalendarPanel events={events} settings={settings} />
+            ) : (
+              <KanbanPanel events={events} />
+            )}
+          </div>
+        </div>
       </div>
 
       <FollowUpModal
