@@ -2,8 +2,11 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext } from '@hello-pangea/dnd';
-import { format, parseISO, isSameDay, isAfter, isBefore } from 'date-fns';
+import { format, parseISO, isSameDay, isBefore } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
+import { RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 
 import GmailSidebar from '@/components/gmail/GmailSidebar';
 import CalendarPanel from '@/components/calendar/CalendarPanel';
@@ -13,7 +16,28 @@ import FollowUpModal from '@/components/FollowUpModal';
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [followUpEvent, setFollowUpEvent] = useState(null);
+  const [syncing, setSyncing] = useState(false);
   const followUpTimersRef = useRef({});
+
+  // Initial sync on mount
+  useEffect(() => {
+    handleSync();
+  }, []);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await Promise.all([
+        base44.functions.invoke('syncGmail', {}),
+        base44.functions.invoke('syncGoogleCalendar', {}),
+      ]);
+      await queryClient.invalidateQueries();
+    } catch (e) {
+      toast.error('Sync failed: ' + e.message);
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   // Fetch data
   const { data: emails = [] } = useQuery({
@@ -237,6 +261,19 @@ export default function Dashboard() {
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <div className="h-screen flex overflow-hidden bg-background">
+        {/* Sync button */}
+        <div className="fixed top-3 right-[340px] z-50">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSync}
+            disabled={syncing}
+            className="h-7 gap-1.5 text-xs bg-card shadow-sm"
+          >
+            <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+            {syncing ? 'Syncing…' : 'Sync'}
+          </Button>
+        </div>
         <GmailSidebar
           emails={emails}
           onMarkRead={handleMarkRead}

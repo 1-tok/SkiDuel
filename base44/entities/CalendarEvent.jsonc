@@ -53,6 +53,10 @@
       "type": "string",
       "description": "Reference to source email if created from Gmail"
     },
+    "gcal_event_id": {
+      "type": "string",
+      "description": "Google Calendar event ID for sync"
+    },
     "kanban_column": {
       "type": "string",
       "enum": [

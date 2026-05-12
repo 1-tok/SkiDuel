@@ -1,0 +1,21 @@
+{
+  "name": "SyncState",
+  "type": "object",
+  "properties": {
+    "service": {
+      "type": "string",
+      "description": "Service name: gmail or googlecalendar"
+    },
+    "sync_token": {
+      "type": "string",
+      "description": "Sync token for incremental sync"
+    },
+    "last_synced": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "service"
+  ]
+}
