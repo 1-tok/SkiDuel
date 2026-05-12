@@ -30,7 +30,9 @@ export default function CalendarEvent({ event, isDragging, style }) {
               <Mail className={`w-2.5 h-2.5 ${colors.text} opacity-50 flex-shrink-0`} />
             )}
           </div>
-          <span className={`text-[10px] ${colors.text} opacity-60`}>{startTime}</span>
+          <span className={`text-[10px] ${colors.text} opacity-60`}>
+            {startTime}{event.calendar_name && event.calendar_name !== 'primary' ? ` · ${event.calendar_name}` : ''}
+          </span>
         </div>
       </div>
     </div>

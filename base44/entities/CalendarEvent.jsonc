@@ -57,6 +57,10 @@
       "type": "string",
       "description": "Google Calendar event ID for sync"
     },
+    "calendar_name": {
+      "type": "string",
+      "description": "Name of the Google Calendar this event belongs to"
+    },
     "kanban_column": {
       "type": "string",
       "enum": [
