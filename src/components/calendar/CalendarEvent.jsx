@@ -12,7 +12,7 @@ export default function CalendarEvent({ event, isDragging, style }) {
   return (
     <div
       style={style}
-      className={`absolute left-1 right-1 rounded-lg border px-2.5 py-1.5 transition-all duration-150 cursor-grab active:cursor-grabbing overflow-hidden group
+      className={`rounded-lg border px-2.5 py-1.5 transition-all duration-150 cursor-grab active:cursor-grabbing overflow-hidden group h-full
         ${colors.bg} ${colors.border}
         ${isDragging ? 'shadow-xl scale-[1.02] ring-2 ring-primary/20 z-50' : 'hover:shadow-md hover:-translate-y-px'}
         ${isCancelled ? 'opacity-40' : ''}

@@ -10,14 +10,51 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
   const dayEvents = events.filter(e => isSameDay(parseISO(e.start_time), date));
   const today = isToday(date);
 
-  const getEventStyle = (event) => {
+  // Compute side-by-side columns for overlapping events
+  const getEventLayouts = (evts) => {
+    // Sort by start time
+    const sorted = [...evts].sort((a, b) => parseISO(a.start_time) - parseISO(b.start_time));
+
+    // Group into overlapping clusters
+    const columns = []; // each entry: { event, col, totalCols }
+    const colEndTimes = []; // track end time of last event in each column
+
+    for (const event of sorted) {
+      const start = parseISO(event.start_time);
+      const end = parseISO(event.end_time);
+
+      // Find a column where this event doesn't overlap
+      let placed = false;
+      for (let c = 0; c < colEndTimes.length; c++) {
+        if (start >= colEndTimes[c]) {
+          columns.push({ event, col: c });
+          colEndTimes[c] = end;
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        columns.push({ event, col: colEndTimes.length });
+        colEndTimes.push(end);
+      }
+    }
+
+    const totalCols = colEndTimes.length;
+    return columns.map(({ event, col }) => ({ event, col, totalCols }));
+  };
+
+  const eventLayouts = getEventLayouts(dayEvents);
+
+  const getEventStyle = (event, col, totalCols) => {
     const start = parseISO(event.start_time);
     const end = parseISO(event.end_time);
     const startMinutes = start.getHours() * 60 + start.getMinutes();
     const endMinutes = end.getHours() * 60 + end.getMinutes();
     const top = (startMinutes / 60) * HOUR_HEIGHT;
     const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 24);
-    return { top: `${top}px`, height: `${height}px` };
+    const width = totalCols > 1 ? `${100 / totalCols}%` : 'calc(100% - 8px)';
+    const left = totalCols > 1 ? `${(col / totalCols) * 100}%` : '4px';
+    return { top: `${top}px`, height: `${height}px`, width, left };
   };
 
   // Current time indicator
@@ -66,7 +103,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
             )}
 
             {/* Events */}
-            {dayEvents.map((event, index) => (
+            {eventLayouts.map(({ event, col, totalCols }, index) => (
               <Draggable key={event.id} draggableId={`event-${event.id}`} index={index}>
                 {(provided, snapshot) => (
                   <div
@@ -75,14 +112,14 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
                     {...provided.dragHandleProps}
                     style={{
                       ...provided.draggableProps.style,
-                      ...(snapshot.isDragging ? {} : getEventStyle(event))
+                      ...(snapshot.isDragging ? {} : getEventStyle(event, col, totalCols))
                     }}
-                    className={snapshot.isDragging ? '' : 'absolute left-1 right-1'}
+                    className={snapshot.isDragging ? '' : 'absolute'}
                   >
                     <CalendarEvent
                       event={event}
                       isDragging={snapshot.isDragging}
-                      style={snapshot.isDragging ? {} : { position: 'relative', left: 0, right: 0 }}
+                      style={snapshot.isDragging ? {} : { position: 'relative', left: 0, right: 0, width: '100%' }}
                     />
                   </div>
                 )}
