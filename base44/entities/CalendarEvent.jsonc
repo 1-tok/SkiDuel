@@ -1,0 +1,88 @@
+{
+  "name": "CalendarEvent",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Event title"
+    },
+    "description": {
+      "type": "string",
+      "description": "Event description or notes"
+    },
+    "start_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event start time in ISO format"
+    },
+    "end_time": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Event end time in ISO format"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Event date"
+    },
+    "duration_minutes": {
+      "type": "number",
+      "default": 30,
+      "description": "Duration in minutes"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "scheduled",
+        "completed",
+        "cancelled",
+        "needs_followup"
+      ],
+      "default": "scheduled"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "manual",
+        "gmail",
+        "google_calendar"
+      ],
+      "default": "manual"
+    },
+    "source_email_id": {
+      "type": "string",
+      "description": "Reference to source email if created from Gmail"
+    },
+    "kanban_column": {
+      "type": "string",
+      "enum": [
+        "todo",
+        "doing",
+        "done",
+        "cancelled"
+      ],
+      "default": "doing"
+    },
+    "color": {
+      "type": "string",
+      "enum": [
+        "blue",
+        "green",
+        "purple",
+        "orange",
+        "pink"
+      ],
+      "default": "blue"
+    },
+    "followup_note": {
+      "type": "string",
+      "description": "Follow-up note if needs follow-up"
+    }
+  },
+  "required": [
+    "title",
+    "start_time",
+    "end_time",
+    "date"
+  ]
+}

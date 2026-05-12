@@ -1,0 +1,26 @@
+{
+  "name": "UserSettings",
+  "type": "object",
+  "properties": {
+    "work_start_hour": {
+      "type": "number",
+      "default": 9,
+      "description": "Working hours start (0-23)"
+    },
+    "work_end_hour": {
+      "type": "number",
+      "default": 18,
+      "description": "Working hours end (0-23)"
+    },
+    "default_event_duration": {
+      "type": "number",
+      "default": 30,
+      "description": "Default event duration in minutes"
+    },
+    "include_weekends": {
+      "type": "boolean",
+      "default": false
+    }
+  },
+  "required": []
+}

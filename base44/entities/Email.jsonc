@@ -1,0 +1,43 @@
+{
+  "name": "Email",
+  "type": "object",
+  "properties": {
+    "sender": {
+      "type": "string",
+      "description": "Sender name"
+    },
+    "sender_email": {
+      "type": "string",
+      "description": "Sender email address"
+    },
+    "subject": {
+      "type": "string",
+      "description": "Email subject line"
+    },
+    "preview": {
+      "type": "string",
+      "description": "First line preview of the email body"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the email was received"
+    },
+    "is_read": {
+      "type": "boolean",
+      "default": false
+    },
+    "is_actioned": {
+      "type": "boolean",
+      "default": false
+    },
+    "gmail_id": {
+      "type": "string",
+      "description": "Gmail message ID for sync"
+    }
+  },
+  "required": [
+    "sender",
+    "subject"
+  ]
+}
