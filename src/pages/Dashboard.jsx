@@ -193,10 +193,48 @@ export default function Dashboard() {
     }
   }, [events, settings, updateEvent, createEvent]);
 
-  const handleDragEnd = useCallback((result) => {
+  // Create a calendar event locally, then push it to the connected Google Calendar
+  const createAndPushEvent = useCallback(async (data) => {
+    const created = await createEvent.mutateAsync(data);
+    try {
+      const res = await base44.functions.invoke('createCalendarEvent', {
+        title: data.title,
+        description: data.description || '',
+        start_time: data.start_time,
+        end_time: data.end_time,
+      });
+      if (res?.gcal_event_id) {
+        await base44.entities.CalendarEvent.update(created.id, {
+          gcal_event_id: res.gcal_event_id,
+          source: 'google_calendar',
+          calendar_name: 'primary',
+        });
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+      }
+    } catch (e) {
+      toast.error('Could not add to Google Calendar: ' + (e?.message || e));
+    }
+    return created;
+  }, [createEvent, queryClient]);
+
+  const handleDragEnd = useCallback(async (result) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
     const today = new Date();
+
+    const emailEventData = (email, slot, column, status) => ({
+      title: email.subject,
+      description: `From: ${email.sender}\n${email.preview}`,
+      start_time: slot.start_time,
+      end_time: slot.end_time,
+      date: slot.date,
+      duration_minutes: settings.default_event_duration ?? 10,
+      source: 'gmail',
+      source_email_id: email.id,
+      kanban_column: column,
+      color: 'blue',
+      status,
+    });
 
     if (draggableId.startsWith('email-')) {
       const emailId = draggableId.replace('email-', '');
@@ -209,55 +247,20 @@ export default function Dashboard() {
         const slot = slotFromDropY(destination.droppableId, dragPosRef.current.y, duration)
           || findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
         if (!slot) return;
-        createEvent.mutate({
-          title: email.subject,
-          description: `From: ${email.sender}\n${email.preview}`,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-          date: slot.date,
-          duration_minutes: settings.default_event_duration ?? 10,
-          source: 'gmail',
-          source_email_id: email.id,
-          kanban_column: isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo',
-          color: 'blue',
-          status: 'scheduled',
-        });
+        await createAndPushEvent(emailEventData(email, slot, isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo', 'scheduled'));
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       } else if (destination.droppableId.startsWith('kanban-')) {
         const column = destination.droppableId.replace('kanban-', '');
-        const isToday = column === 'doing';
-        const slot = findNextAvailableSlot(events, today, settings, isToday);
+        const isTodayCol = column === 'doing';
+        const slot = findNextAvailableSlot(events, today, settings, isTodayCol);
         if (!slot) return;
-        createEvent.mutate({
-          title: email.subject,
-          description: `From: ${email.sender}\n${email.preview}`,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-          date: slot.date,
-          duration_minutes: settings.default_event_duration ?? 10,
-          source: 'gmail',
-          source_email_id: email.id,
-          kanban_column: column,
-          color: 'blue',
-          status: column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled',
-        });
+        const status = column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled';
+        await createAndPushEvent(emailEventData(email, slot, column, status));
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       } else if (destination.droppableId === 'schedule') {
         const slot = findNextAvailableSlot(events, today, settings);
         if (!slot) return;
-        createEvent.mutate({
-          title: email.subject,
-          description: `From: ${email.sender}\n${email.preview}`,
-          start_time: slot.start_time,
-          end_time: slot.end_time,
-          date: slot.date,
-          duration_minutes: settings.default_event_duration ?? 10,
-          source: 'gmail',
-          source_email_id: email.id,
-          kanban_column: isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo',
-          color: 'blue',
-          status: 'scheduled',
-        });
+        await createAndPushEvent(emailEventData(email, slot, isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo', 'scheduled'));
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       }
       return;
@@ -271,13 +274,14 @@ export default function Dashboard() {
       if (destination.droppableId.startsWith('kanban-')) {
         const targetColumn = destination.droppableId.replace('kanban-', '');
         const updates = { kanban_column: targetColumn };
+        let slot = null;
         if (targetColumn === 'done') {
           updates.status = 'completed';
         } else if (targetColumn === 'past') {
           updates.status = 'cancelled';
         } else if (targetColumn === 'doing') {
           updates.status = 'scheduled';
-          const slot = findNextAvailableSlot(events, today, settings, true);
+          slot = findNextAvailableSlot(events, today, settings, true);
           if (slot) {
             updates.start_time = slot.start_time;
             updates.end_time = slot.end_time;
@@ -287,14 +291,35 @@ export default function Dashboard() {
           updates.status = 'scheduled';
           const tomorrow = new Date();
           tomorrow.setDate(tomorrow.getDate() + 1);
-          const slot = findNextAvailableSlot(events, tomorrow, settings);
+          slot = findNextAvailableSlot(events, tomorrow, settings);
           if (slot) {
             updates.start_time = slot.start_time;
             updates.end_time = slot.end_time;
             updates.date = slot.date;
           }
         }
-        updateEvent.mutate({ id: event.id, data: updates });
+        await updateEvent.mutateAsync({ id: event.id, data: updates });
+        // Moving to Doing schedules it into the next available slot and creates the Google Calendar entry
+        if (targetColumn === 'doing' && slot && !event.gcal_event_id) {
+          try {
+            const res = await base44.functions.invoke('createCalendarEvent', {
+              title: event.title,
+              description: event.description || '',
+              start_time: slot.start_time,
+              end_time: slot.end_time,
+            });
+            if (res?.gcal_event_id) {
+              await base44.entities.CalendarEvent.update(event.id, {
+                gcal_event_id: res.gcal_event_id,
+                source: 'google_calendar',
+                calendar_name: 'primary',
+              });
+              queryClient.invalidateQueries({ queryKey: ['events'] });
+            }
+          } catch (e) {
+            toast.error('Could not add to Google Calendar: ' + (e?.message || e));
+          }
+        }
       } else if (destination.droppableId.startsWith('calendar-')) {
         const targetDate = destination.droppableId.replace('calendar-', '');
         const isTargetToday = isSameDay(new Date(targetDate), today);
@@ -313,7 +338,7 @@ export default function Dashboard() {
         }
       }
     }
-  }, [emails, events, settings, createEvent, updateEvent, updateEmail]);
+  }, [emails, events, settings, createEvent, updateEvent, updateEmail, createAndPushEvent, queryClient]);
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>

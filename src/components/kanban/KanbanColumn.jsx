@@ -4,7 +4,7 @@ import KanbanCard from './KanbanCard';
 
 const columnConfig = {
   todo: { label: 'To Do', color: 'bg-blue-400', emptyText: 'No upcoming tasks' },
-  doing: { label: 'Doing', color: 'bg-amber-400', emptyText: 'Nothing scheduled today' },
+  doing: { label: 'Doing Today', color: 'bg-amber-400', emptyText: 'Nothing scheduled today' },
   done: { label: 'Done', color: 'bg-emerald-400', emptyText: 'Nothing completed yet' },
   past: { label: 'Past', color: 'bg-slate-400', emptyText: 'No past items' },
 };
