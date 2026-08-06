@@ -22,18 +22,20 @@ export default function GmailSidebar({ emails, onMarkRead, onSchedule, mailAccou
             <Mail className="w-3.5 h-3.5 text-primary" />
           </div>
           <h2 className="text-sm font-semibold text-foreground">Mail</h2>
-          {visibleEmails.length > 0 && (
-            <span className="ml-auto text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
-              {visibleEmails.length}
-            </span>
-          )}
-          <button
-            onClick={() => setIntegrationsOpen(true)}
-            className="p-1 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-            title="Sync integrations"
-          >
-            <Settings className="w-3.5 h-3.5" />
-          </button>
+          <div className="ml-auto flex items-center gap-1">
+            {visibleEmails.length > 0 && (
+              <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
+                {visibleEmails.length}
+              </span>
+            )}
+            <button
+              onClick={() => setIntegrationsOpen(true)}
+              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              title="Sync integrations"
+            >
+              <Settings className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
         <div className="flex items-center justify-between">
           <span className="text-[11px] text-muted-foreground">Show read emails</span>
