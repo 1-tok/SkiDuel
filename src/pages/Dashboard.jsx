@@ -216,6 +216,23 @@ export default function Dashboard() {
           status: column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled',
         });
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
+      } else if (destination.droppableId === 'schedule') {
+        const slot = findNextAvailableSlot(events, today, settings, true);
+        if (!slot) return;
+        createEvent.mutate({
+          title: email.subject,
+          description: `From: ${email.sender}\n${email.preview}`,
+          start_time: slot.start_time,
+          end_time: slot.end_time,
+          date: slot.date,
+          duration_minutes: settings.default_event_duration ?? 10,
+          source: 'gmail',
+          source_email_id: email.id,
+          kanban_column: isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo',
+          color: 'blue',
+          status: 'scheduled',
+        });
+        updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       }
       return;
     }
