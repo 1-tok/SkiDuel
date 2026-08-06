@@ -17,12 +17,36 @@ import FollowUpModal from '@/components/FollowUpModal';
 import CalendarFilter from '@/components/calendar/CalendarFilter';
 import ThemeToggle from '@/components/ThemeToggle';
 
+const HOUR_HEIGHT = 60;
+function slotFromDropY(droppableId, clientY, durationMin) {
+  const el = document.querySelector(`[data-rbd-droppable-id="${droppableId}"]`);
+  if (!el || clientY == null) return null;
+  const rect = el.getBoundingClientRect();
+  const scrollContainer = el.closest('.overflow-y-auto');
+  const scrollTop = scrollContainer?.scrollTop ?? 0;
+  const relY = clientY - rect.top + scrollTop;
+  let minutes = Math.max(0, Math.min(23 * 60, Math.round((relY / HOUR_HEIGHT) * 60)));
+  minutes = Math.round(minutes / 15) * 15;
+  const targetDate = droppableId.replace('calendar-', '');
+  const start = new Date(targetDate + 'T00:00:00');
+  start.setHours(Math.floor(minutes / 60), minutes % 60, 0, 0);
+  const end = new Date(start.getTime() + durationMin * 60000);
+  return { start_time: start.toISOString(), end_time: end.toISOString(), date: targetDate };
+}
+
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [followUpEvent, setFollowUpEvent] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [view, setView] = useState('calendar'); // 'calendar' | 'board'
   const followUpTimersRef = useRef({});
+  const dragPosRef = useRef({ y: 0 });
+
+  useEffect(() => {
+    const onMove = (e) => { dragPosRef.current.y = e.clientY; };
+    window.addEventListener('mousemove', onMove);
+    return () => window.removeEventListener('mousemove', onMove);
+  }, []);
 
   // Initial sync on mount
   useEffect(() => {
@@ -181,7 +205,9 @@ export default function Dashboard() {
 
       if (destination.droppableId.startsWith('calendar-')) {
         const targetDate = destination.droppableId.replace('calendar-', '');
-        const slot = findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
+        const duration = settings.default_event_duration ?? 10;
+        const slot = slotFromDropY(destination.droppableId, dragPosRef.current.y, duration)
+          || findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
         if (!slot) return;
         createEvent.mutate({
           title: email.subject,
@@ -217,7 +243,7 @@ export default function Dashboard() {
         });
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       } else if (destination.droppableId === 'schedule') {
-        const slot = findNextAvailableSlot(events, today, settings, true);
+        const slot = findNextAvailableSlot(events, today, settings);
         if (!slot) return;
         createEvent.mutate({
           title: email.subject,
