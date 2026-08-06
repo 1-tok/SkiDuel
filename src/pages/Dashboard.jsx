@@ -74,6 +74,15 @@ export default function Dashboard() {
     });
   }, [events, visibility]);
 
+  const mailAccounts = useMemo(
+    () => [...new Set(emails.map(e => e.source_account).filter(Boolean))],
+    [emails]
+  );
+  const calendarAccounts = useMemo(
+    () => [...new Set(events.filter(e => e.source === 'google_calendar').map(e => e.source_account).filter(Boolean))],
+    [events]
+  );
+
   // Mutations
   const updateEmail = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Email.update(id, data),
@@ -267,6 +276,8 @@ export default function Dashboard() {
           emails={emails}
           onMarkRead={handleMarkRead}
           onSchedule={handleScheduleEmail}
+          mailAccounts={mailAccounts}
+          calendarAccounts={calendarAccounts}
         />
 
         {/* Main area with toggle */}
