@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import GmailSidebar from '@/components/gmail/GmailSidebar';
 import CalendarPanel from '@/components/calendar/CalendarPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
+import ScheduleView from '@/components/schedule/ScheduleView';
 import FollowUpModal from '@/components/FollowUpModal';
 import CalendarFilter from '@/components/calendar/CalendarFilter';
 import ThemeToggle from '@/components/ThemeToggle';
@@ -310,6 +311,17 @@ export default function Dashboard() {
                 Calendar
               </button>
               <button
+                onClick={() => setView('schedule')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                  view === 'schedule'
+                    ? 'bg-card text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                Schedule
+              </button>
+              <button
                 onClick={() => setView('board')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                   view === 'board'
@@ -346,6 +358,8 @@ export default function Dashboard() {
                 settings={settings}
                 onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
               />
+            ) : view === 'schedule' ? (
+              <ScheduleView events={visibleEvents} />
             ) : (
               <KanbanPanel events={visibleEvents} />
             )}
