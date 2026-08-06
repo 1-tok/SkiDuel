@@ -317,8 +317,8 @@ export default function Dashboard() {
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
               >
-                <List className="w-3.5 h-3.5" />
-                Board
+                <List className="w-3.5 h-3.5 rotate-90" />
+                Kanban
               </button>
             </div>
 
