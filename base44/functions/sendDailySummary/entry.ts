@@ -25,11 +25,50 @@ export default async function(req) {
 
     const pendingEmails = emails.filter(e => !e.is_actioned);
 
+    // Accounts represented in today's data (all connected accounts are pulled in via sync)
+    const accounts = new Set<string>();
+    todaysEvents.forEach(e => e.source_account && accounts.add(e.source_account));
+    pendingEmails.forEach(e => e.source_account && accounts.add(e.source_account));
+    const accountList = [...accounts].sort();
+
+    // Open "Doing" tasks — highlight these at the top
+    const doingTasks = pendingTasks.filter(t => t.kanban_column === 'doing');
+
     // Build the summary email body
     const lines = [];
     lines.push(`Good morning, ${user.full_name || 'there'}!`);
     lines.push('');
     lines.push(`Here's your daily summary for ${format(today, 'EEEE, MMMM d')}.`);
+    lines.push('');
+    if (accountList.length > 0) {
+      lines.push(`Pulled from all connected accounts: ${accountList.join(', ')}`);
+      lines.push('');
+    }
+
+    if (doingTasks.length > 0) {
+      lines.push(`🔥 IN PROGRESS — Doing Now (${doingTasks.length})`);
+      lines.push('─────────────────────────────');
+      doingTasks.forEach(t => {
+        const time = format(parseISO(t.start_time), 'h:mm a');
+        const account = t.source_account ? ` [${t.source_account}]` : '';
+        lines.push(`★ [DOING] ${time} — ${t.title}${account}`);
+        if (t.followup_note) lines.push(`    ${t.followup_note.slice(0, 120)}`);
+      });
+      lines.push('');
+    }
+
+    lines.push(`📋 Today's Tasks (${pendingTasks.length})`);
+    lines.push('─────────────────────────────');
+    if (pendingTasks.length === 0) {
+      lines.push('No tasks scheduled for today.');
+    } else {
+      pendingTasks.forEach(t => {
+        const time = format(parseISO(t.start_time), 'h:mm a');
+        const marker = t.kanban_column === 'doing' ? '★ [DOING] ' : '[TODO] ';
+        const account = t.source_account ? ` [${t.source_account}]` : '';
+        lines.push(`• ${marker}${time} — ${t.title}${account}`);
+      });
+    }
     lines.push('');
 
     lines.push(`📅 Today's Calendar Events (${todaysEvents.length})`);
@@ -44,20 +83,6 @@ export default async function(req) {
         const cal = e.calendar_name && e.calendar_name !== 'primary' ? ` (${e.calendar_name})` : '';
         lines.push(`• ${time} — ${status}${e.title}${cal}${account}`);
         if (e.description) lines.push(`    ${e.description.slice(0, 120)}`);
-      });
-    }
-    lines.push('');
-
-    lines.push(`📋 Pending Tasks for Today (${pendingTasks.length})`);
-    lines.push('─────────────────────────────');
-    if (pendingTasks.length === 0) {
-      lines.push('No pending tasks for today.');
-    } else {
-      pendingTasks.forEach(t => {
-        const time = format(parseISO(t.start_time), 'h:mm a');
-        const col = t.kanban_column === 'todo' ? 'TODO' : 'DOING';
-        const account = t.source_account ? ` [${t.source_account}]` : '';
-        lines.push(`• [${col}] ${time} — ${t.title}${account}`);
       });
     }
     lines.push('');
@@ -77,10 +102,10 @@ export default async function(req) {
     }
     lines.push('');
     lines.push('Have a productive day!');
-    lines.push('— Flowcal');
+    lines.push('— Calkanban');
 
     const body = lines.join('\n');
-    const subject = `Flowcal Daily Summary — ${format(today, 'MMM d')}`;
+    const subject = `Calkanban Daily Summary — ${format(today, 'MMM d')}`;
 
     // Send to all admin users
     const users = await base44.asServiceRole.entities.User.list();
@@ -93,7 +118,7 @@ export default async function(req) {
           to,
           subject,
           body,
-          from_name: 'Flowcal',
+          from_name: 'Calkanban',
         });
         results.push({ to, status: 'sent' });
       } catch (err) {
@@ -103,8 +128,10 @@ export default async function(req) {
 
     return Response.json({
       date: todayStr,
+      accounts: accountList,
       events: todaysEvents.length,
       pendingTasks: pendingTasks.length,
+      doingTasks: doingTasks.length,
       pendingEmails: pendingEmails.length,
       recipients: results,
     });
