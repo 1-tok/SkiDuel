@@ -22,7 +22,7 @@ function slotFromDropY(droppableId, clientY, durationMin) {
   const el = document.querySelector(`[data-rbd-droppable-id="${droppableId}"]`);
   if (!el || clientY == null) return null;
   const rect = el.getBoundingClientRect();
-  const scrollContainer = el.closest('.overflow-y-auto');
+  const scrollContainer = el.closest('[data-calendar-scroll]');
   const scrollTop = scrollContainer?.scrollTop ?? 0;
   const relY = clientY - rect.top + scrollTop;
   let minutes = Math.max(0, Math.min(23 * 60, Math.round((relY / HOUR_HEIGHT) * 60)));

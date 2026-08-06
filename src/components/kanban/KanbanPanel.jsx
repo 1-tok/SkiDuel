@@ -22,7 +22,7 @@ export default function KanbanPanel({ events }) {
   };
 
   return (
-    <div className="flex h-full bg-muted/30 p-4 gap-4 overflow-x-auto">
+    <div className="flex h-full bg-muted/30 p-4 gap-4 overflow-x-auto overscroll-contain">
       {['todo', 'doing', 'done', 'past'].map(col => (
         <KanbanColumn key={col} columnId={col} events={columns[col]} />
       ))}

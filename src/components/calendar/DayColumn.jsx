@@ -5,7 +5,7 @@ import CalendarEvent from './CalendarEvent';
 
 const HOUR_HEIGHT = 60; // px per hour
 
-export default function DayColumn({ date, events, workStart = 9, workEnd = 18, showDateHeader = false, onUpdateEvent, previewDuration = 30 }) {
+export default function DayColumn({ date, events, workStart = 9, workEnd = 18, onUpdateEvent, previewDuration = 30, minWidth = 0 }) {
   const containerRef = useRef(null);
   const [draggingEvent, setDraggingEvent] = useState(null); // { event, offsetMinutes, ghostTop }
   const dragState = useRef(null);
@@ -72,7 +72,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
 
   const getMinutesFromY = useCallback((y) => {
     if (!containerRef.current) return 0;
-    const scrollContainer = containerRef.current.closest('.overflow-y-auto');
+    const scrollContainer = containerRef.current.closest('[data-calendar-scroll]');
     const scrollTop = scrollContainer?.scrollTop ?? 0;
     const rect = containerRef.current.getBoundingClientRect();
     const relY = y - rect.top + scrollTop;
@@ -138,15 +138,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
   const hours = Array.from({ length: 24 }, (_, i) => i);
 
   return (
-    <div className="flex-1 min-w-0">
-      {showDateHeader && (
-        <div className={`text-center py-2 border-b border-border sticky top-0 bg-card/80 backdrop-blur-sm z-10 ${today ? 'text-primary' : 'text-muted-foreground'}`}>
-          <div className="text-[10px] font-medium uppercase">{format(date, 'EEE')}</div>
-          <div className={`text-lg font-semibold ${today ? 'w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center mx-auto' : ''}`}>
-            {format(date, 'd')}
-          </div>
-        </div>
-      )}
+    <div className="flex-1 min-w-0" style={minWidth ? { minWidth: `${minWidth}px` } : undefined}>
       <Droppable droppableId={`calendar-${format(date, 'yyyy-MM-dd')}`} type="TASK">
         {(provided, snapshot) => (
           <div
