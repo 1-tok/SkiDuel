@@ -60,106 +60,131 @@ async function fetchAllPages(url, authHeader) {
   return { items, nextSyncToken };
 }
 
-Deno.serve(async (req) => {
-  try {
-    const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+async function syncOneCalendarAccount(base44, accessToken, existingByGCalId, existingVisByKey) {
+  const authHeader = { Authorization: `Bearer ${accessToken}` };
 
-    const { accessToken } = await base44.asServiceRole.connectors.getConnection('googlecalendar');
-    const authHeader = { Authorization: `Bearer ${accessToken}` };
+  const calListRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', { headers: authHeader });
+  if (!calListRes.ok) return { calendars: 0, created: 0, updated: 0, error: 'calendar list failed' };
+  const calListData = await calListRes.json();
+  const calendars = (calListData.items || []).filter(c => c.selected !== false);
+  const accountEmail = (calendars.find(c => c.primary) || {}).id || (calendars[0] || {}).id || '';
 
-    // Fetch all calendars
-    const calListRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', { headers: authHeader });
-    if (!calListRes.ok) return Response.json({ error: 'Failed to list calendars' }, { status: 500 });
-    const calListData = await calListRes.json();
-    const calendars = (calListData.items || []).filter(c => c.selected !== false);
-    const accountEmail = (calendars.find(c => c.primary) || {}).id || (calendars[0] || {}).id || '';
-
-    // Ensure a visibility record exists for each calendar (default visible)
-    const existingVis = await base44.asServiceRole.entities.CalendarVisibility.list('-created_date', 200);
-    const visByKey = {};
-    for (const v of existingVis) visByKey[`${v.source_account}|${v.calendar_name}`] = v;
-    for (const cal of calendars) {
-      const calName = cal.summary || cal.id;
-      const key = `${accountEmail}|${calName}`;
-      if (!visByKey[key]) {
+  // Ensure a visibility record exists for each calendar (default visible)
+  for (const cal of calendars) {
+    const calName = cal.summary || cal.id;
+    const key = `${accountEmail}|${calName}`;
+    if (!existingVisByKey[key]) {
+      try {
         await base44.asServiceRole.entities.CalendarVisibility.create({
           source_account: accountEmail,
           calendar_name: calName,
           is_visible: true,
           is_shared: cal.accessRole && cal.accessRole !== 'owner',
         });
-        visByKey[key] = true;
+        existingVisByKey[key] = true;
+      } catch {}
+    }
+  }
+
+  const timeMin = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  const timeMax = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  let created = 0, updated = 0;
+
+  for (const cal of calendars) {
+    const calId = encodeURIComponent(cal.id);
+    const calName = cal.summary || cal.id;
+    const isShared = cal.accessRole && cal.accessRole !== 'owner';
+
+    const syncKey = `googlecalendar_${accountEmail}_${cal.id}`;
+    const syncStates = await base44.asServiceRole.entities.SyncState.filter({ service: syncKey });
+    const syncRecord = syncStates.length > 0 ? syncStates[0] : null;
+
+    let url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events?maxResults=100&singleEvents=true&orderBy=startTime`;
+    if (syncRecord?.sync_token) {
+      url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events?maxResults=100&syncToken=${syncRecord.sync_token}`;
+    } else {
+      url += `&timeMin=${timeMin}&timeMax=${timeMax}`;
+    }
+
+    let { items, nextSyncToken } = await fetchAllPages(url, authHeader);
+
+    if (items.length === 0 && syncRecord?.sync_token) {
+      url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events?maxResults=100&singleEvents=true&orderBy=startTime&timeMin=${timeMin}&timeMax=${timeMax}`;
+      const result = await fetchAllPages(url, authHeader);
+      items = result.items;
+      nextSyncToken = result.nextSyncToken;
+    }
+
+    for (const gcEvent of items) {
+      const mapped = mapGCalEvent(gcEvent, calName, isShared, accountEmail);
+      if (!mapped) continue;
+
+      const existing = existingByGCalId[gcEvent.id];
+      if (existing) {
+        await base44.asServiceRole.entities.CalendarEvent.update(existing.id, mapped);
+        updated++;
+      } else {
+        await base44.entities.CalendarEvent.create(mapped);
+        created++;
       }
     }
 
-    // Get existing gcal events
+    if (nextSyncToken) {
+      const now = new Date().toISOString();
+      if (syncRecord) {
+        await base44.asServiceRole.entities.SyncState.update(syncRecord.id, { sync_token: nextSyncToken, last_synced: now });
+      } else {
+        await base44.asServiceRole.entities.SyncState.create({ service: syncKey, sync_token: nextSyncToken, last_synced: now });
+      }
+    }
+  }
+
+  return { account: accountEmail, calendars: calendars.length, created, updated };
+}
+
+Deno.serve(async (req) => {
+  try {
+    const base44 = createClientFromRequest(req);
+    const user = await base44.auth.me();
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+
     const existingEvents = await base44.asServiceRole.entities.CalendarEvent.filter({ source: 'google_calendar' });
     const existingByGCalId = {};
     for (const e of existingEvents) {
       if (e.gcal_event_id) existingByGCalId[e.gcal_event_id] = e;
     }
 
-    const timeMin = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const timeMax = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const existingVis = await base44.asServiceRole.entities.CalendarVisibility.list('-created_date', 200);
+    const existingVisByKey = {};
+    for (const v of existingVis) existingVisByKey[`${v.source_account}|${v.calendar_name}`] = true;
 
-    let created = 0, updated = 0;
+    const results = [];
 
-    for (const cal of calendars) {
-      const calId = encodeURIComponent(cal.id);
-      const calName = cal.summary || cal.id;
+    // Primary shared connection
+    try {
+      const { accessToken } = await base44.asServiceRole.connectors.getConnection('googlecalendar');
+      results.push(await syncOneCalendarAccount(base44, accessToken, existingByGCalId, existingVisByKey));
+    } catch (e) {
+      results.push({ account: 'primary', error: e.message });
+    }
 
-      // Load per-calendar sync token
-      const syncKey = `googlecalendar_${cal.id}`;
-      const syncStates = await base44.asServiceRole.entities.SyncState.filter({ service: syncKey });
-      const syncRecord = syncStates.length > 0 ? syncStates[0] : null;
+    // Additional BYO-shared workspace connectors
+    let accountConfigs = [];
+    try {
+      accountConfigs = await base44.asServiceRole.entities.AccountConnection.filter({ integration_type: 'googlecalendar', is_active: true });
+    } catch {}
 
-      let url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events?maxResults=100&singleEvents=true&orderBy=startTime`;
-      if (syncRecord?.sync_token) {
-        url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events?maxResults=100&syncToken=${syncRecord.sync_token}`;
-      } else {
-        url += `&timeMin=${timeMin}&timeMax=${timeMax}`;
-      }
-
-      let { items, nextSyncToken } = await fetchAllPages(url, authHeader);
-
-      // syncToken expired — full resync
-      if (items.length === 0 && syncRecord?.sync_token) {
-        url = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events?maxResults=100&singleEvents=true&orderBy=startTime&timeMin=${timeMin}&timeMax=${timeMax}`;
-        const result = await fetchAllPages(url, authHeader);
-        items = result.items;
-        nextSyncToken = result.nextSyncToken;
-      }
-
-      const isShared = cal.accessRole && cal.accessRole !== 'owner';
-
-    for (const gcEvent of items) {
-        const mapped = mapGCalEvent(gcEvent, calName, isShared, accountEmail);
-        if (!mapped) continue;
-
-        const existing = existingByGCalId[gcEvent.id];
-        if (existing) {
-          await base44.asServiceRole.entities.CalendarEvent.update(existing.id, mapped);
-          updated++;
-        } else {
-          await base44.asServiceRole.entities.CalendarEvent.create(mapped);
-          created++;
-        }
-      }
-
-      // Save per-calendar sync token
-      if (nextSyncToken) {
-        const now = new Date().toISOString();
-        if (syncRecord) {
-          await base44.asServiceRole.entities.SyncState.update(syncRecord.id, { sync_token: nextSyncToken, last_synced: now });
-        } else {
-          await base44.asServiceRole.entities.SyncState.create({ service: syncKey, sync_token: nextSyncToken, last_synced: now });
-        }
+    for (const ac of accountConfigs) {
+      try {
+        const { accessToken } = await base44.asServiceRole.connectors.getWorkspaceConnection(ac.connector_id);
+        results.push(await syncOneCalendarAccount(base44, accessToken, existingByGCalId, existingVisByKey));
+      } catch (e) {
+        results.push({ account: ac.label || ac.connector_id, error: e.message });
       }
     }
 
-    return Response.json({ created, updated, calendars: calendars.length });
+    return Response.json({ results });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });
   }

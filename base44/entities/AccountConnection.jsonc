@@ -1,0 +1,31 @@
+{
+  "name": "AccountConnection",
+  "type": "object",
+  "properties": {
+    "integration_type": {
+      "type": "string",
+      "enum": [
+        "gmail",
+        "googlecalendar"
+      ],
+      "description": "Which service this connection is for"
+    },
+    "connector_id": {
+      "type": "string",
+      "description": "Workspace connector (OrganizationConnector) id backing this account"
+    },
+    "label": {
+      "type": "string",
+      "description": "Display label for this account"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this account is included in syncs"
+    }
+  },
+  "required": [
+    "integration_type",
+    "connector_id"
+  ]
+}
