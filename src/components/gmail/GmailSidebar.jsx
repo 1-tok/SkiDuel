@@ -14,7 +14,7 @@ export default function GmailSidebar({ emails, onMarkRead, onSchedule, mailAccou
     : emails.filter(e => !e.is_read && !e.is_actioned);
 
   return (
-    <div className="bg-card flex flex-col h-full">
+    <div className="bg-card flex flex-col h-full min-h-0">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2 mb-3">
@@ -49,7 +49,7 @@ export default function GmailSidebar({ emails, onMarkRead, onSchedule, mailAccou
           <div 
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="flex-1 overflow-y-auto overscroll-y-contain p-3 space-y-2"
+            className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 space-y-2"
           >
             {visibleEmails.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">
