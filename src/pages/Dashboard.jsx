@@ -284,6 +284,14 @@ export default function Dashboard() {
         <div className="flex-1 flex flex-col min-w-0">
           {/* Toggle bar */}
           <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card">
+            <div className="flex items-center gap-1.5 pr-3 mr-1 border-r border-border">
+              <img
+                src="https://media.base44.com/images/public/6a0383b6225245c6dd116653/1946bb15d_ChatGPTImageAug6202612_27_39PM.png"
+                alt="Calkanban"
+                className="w-6 h-6 rounded-md object-cover"
+              />
+              <span className="text-sm font-semibold text-foreground tracking-tight">Calkanban</span>
+            </div>
             <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
               <button
                 onClick={() => setView('calendar')}
@@ -321,14 +329,6 @@ export default function Dashboard() {
                 <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing…' : 'Sync'}
               </Button>
-              <div className="flex items-center gap-1.5 pl-2 ml-1 border-l border-border">
-                <span className="text-sm font-semibold text-foreground tracking-tight">Calkanban</span>
-                <img
-                  src="https://media.base44.com/images/public/6a0383b6225245c6dd116653/1946bb15d_ChatGPTImageAug6202612_27_39PM.png"
-                  alt="Calkanban"
-                  className="w-6 h-6 rounded-md object-cover"
-                />
-              </div>
             </div>
           </div>
 
