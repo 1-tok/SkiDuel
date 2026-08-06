@@ -4,13 +4,15 @@ import KanbanColumn from './KanbanColumn';
 
 export default function KanbanPanel({ events }) {
   const now = new Date();
+  // Exclude events from calendars shared with the user — they only show on the Calendar view.
+  const own = events.filter(e => !e.is_shared_calendar);
   const isPast = (e) => e.start_time && isBefore(parseISO(e.start_time), now);
 
   const columns = {
-    todo: events.filter(e => e.kanban_column === 'todo' && !isPast(e)),
-    doing: events.filter(e => e.kanban_column === 'doing'),
-    done: events.filter(e => e.kanban_column === 'done'),
-    past: events.filter(e => e.kanban_column === 'past' || (e.kanban_column === 'todo' && isPast(e))),
+    todo: own.filter(e => e.kanban_column === 'todo' && !isPast(e)),
+    doing: own.filter(e => e.kanban_column === 'doing'),
+    done: own.filter(e => e.kanban_column === 'done'),
+    past: own.filter(e => e.kanban_column === 'past' || (e.kanban_column === 'todo' && isPast(e))),
   };
 
   return (

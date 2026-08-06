@@ -61,6 +61,11 @@
       "type": "string",
       "description": "Name of the Google Calendar this event belongs to"
     },
+    "is_shared_calendar": {
+      "type": "boolean",
+      "default": false,
+      "description": "True if the event is from a calendar shared with (not owned by) the user"
+    },
     "kanban_column": {
       "type": "string",
       "enum": [

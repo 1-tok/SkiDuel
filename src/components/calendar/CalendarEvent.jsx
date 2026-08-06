@@ -1,5 +1,5 @@
 import React from 'react';
-import { Mail, GripVertical } from 'lucide-react';
+import { Mail, GripVertical, Users } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getEventColor } from '@/lib/scheduling';
 
@@ -7,6 +7,7 @@ export default function CalendarEvent({ event, isDragging, style }) {
   const colors = getEventColor(event.color);
   const isCompleted = event.status === 'completed';
   const isCancelled = event.status === 'cancelled';
+  const isShared = !!event.is_shared_calendar;
   const startTime = format(parseISO(event.start_time), 'h:mm a');
 
   return (
@@ -29,9 +30,12 @@ export default function CalendarEvent({ event, isDragging, style }) {
             {event.source === 'gmail' && (
               <Mail className={`w-2.5 h-2.5 ${colors.text} opacity-50 flex-shrink-0`} />
             )}
+            {isShared && (
+              <Users className={`w-2.5 h-2.5 ${colors.text} opacity-60 flex-shrink-0`} />
+            )}
           </div>
-          <span className={`text-[10px] ${colors.text} opacity-60`}>
-            {startTime}{event.calendar_name && event.calendar_name !== 'primary' ? ` · ${event.calendar_name}` : ''}
+          <span className={`text-[10px] ${colors.text} opacity-60 truncate block`}>
+            {startTime}{isShared && event.calendar_name ? ` · via ${event.calendar_name}` : (event.calendar_name && event.calendar_name !== 'primary' ? ` · ${event.calendar_name}` : '')}
           </span>
         </div>
       </div>

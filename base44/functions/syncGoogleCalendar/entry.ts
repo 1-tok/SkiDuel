@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { format } from 'npm:date-fns@3.6.0';
 
-function mapGCalEvent(gcEvent, calendarName) {
+function mapGCalEvent(gcEvent, calendarName, isShared) {
   const start = gcEvent.start?.dateTime || gcEvent.start?.date;
   const end = gcEvent.end?.dateTime || gcEvent.end?.date;
   if (!start || !end) return null;
@@ -31,7 +31,8 @@ function mapGCalEvent(gcEvent, calendarName) {
     status,
     source: 'google_calendar',
     calendar_name: calendarName,
-    kanban_column: status === 'cancelled' ? 'cancelled' : isToday ? 'doing' : 'todo',
+    is_shared_calendar: !!isShared,
+    kanban_column: status === 'cancelled' ? 'past' : isToday ? 'doing' : 'todo',
     color: colorMap[gcEvent.colorId] || 'blue',
     gcal_event_id: gcEvent.id,
   };
@@ -111,8 +112,10 @@ Deno.serve(async (req) => {
         nextSyncToken = result.nextSyncToken;
       }
 
-      for (const gcEvent of items) {
-        const mapped = mapGCalEvent(gcEvent, calName);
+      const isShared = cal.accessRole && cal.accessRole !== 'owner';
+
+    for (const gcEvent of items) {
+        const mapped = mapGCalEvent(gcEvent, calName, isShared);
         if (!mapped) continue;
 
         const existing = existingByGCalId[gcEvent.id];
