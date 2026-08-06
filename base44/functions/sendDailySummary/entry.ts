@@ -40,7 +40,9 @@ export default async function(req) {
       todaysEvents.forEach(e => {
         const time = format(parseISO(e.start_time), 'h:mm a');
         const status = e.status === 'completed' ? '✓ ' : e.status === 'cancelled' ? '✗ ' : '';
-        lines.push(`• ${time} — ${status}${e.title}`);
+        const account = e.source_account ? ` [${e.source_account}]` : '';
+        const cal = e.calendar_name && e.calendar_name !== 'primary' ? ` (${e.calendar_name})` : '';
+        lines.push(`• ${time} — ${status}${e.title}${cal}${account}`);
         if (e.description) lines.push(`    ${e.description.slice(0, 120)}`);
       });
     }
@@ -54,7 +56,8 @@ export default async function(req) {
       pendingTasks.forEach(t => {
         const time = format(parseISO(t.start_time), 'h:mm a');
         const col = t.kanban_column === 'todo' ? 'TODO' : 'DOING';
-        lines.push(`• [${col}] ${time} — ${t.title}`);
+        const account = t.source_account ? ` [${t.source_account}]` : '';
+        lines.push(`• [${col}] ${time} — ${t.title}${account}`);
       });
     }
     lines.push('');
@@ -65,7 +68,8 @@ export default async function(req) {
       lines.push('Inbox is clear — no pending emails.');
     } else {
       pendingEmails.slice(0, 10).forEach(m => {
-        lines.push(`• ${m.sender}: ${m.subject}`);
+        const account = m.source_account ? ` [${m.source_account}]` : '';
+        lines.push(`• ${m.sender}: ${m.subject}${account}`);
       });
       if (pendingEmails.length > 10) {
         lines.push(`...and ${pendingEmails.length - 10} more.`);
