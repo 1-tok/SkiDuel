@@ -6,7 +6,7 @@ const columnConfig = {
   todo: { label: 'To Do', color: 'bg-blue-400', emptyText: 'No upcoming tasks' },
   doing: { label: 'Doing', color: 'bg-amber-400', emptyText: 'Nothing scheduled today' },
   done: { label: 'Done', color: 'bg-emerald-400', emptyText: 'Nothing completed yet' },
-  cancelled: { label: 'Cancelled', color: 'bg-slate-400', emptyText: 'No cancellations' },
+  past: { label: 'Past', color: 'bg-slate-400', emptyText: 'No past items' },
 };
 
 export default function KanbanColumn({ columnId, events }) {

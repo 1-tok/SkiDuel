@@ -118,7 +118,7 @@ export default function Dashboard() {
     if (action === 'completed') {
       updateEvent.mutate({ id: event.id, data: { status: 'completed', kanban_column: 'done' } });
     } else if (action === 'cancelled') {
-      updateEvent.mutate({ id: event.id, data: { status: 'cancelled', kanban_column: 'cancelled' } });
+      updateEvent.mutate({ id: event.id, data: { status: 'cancelled', kanban_column: 'past' } });
     } else if (action === 'needs_followup') {
       updateEvent.mutate({ id: event.id, data: { status: 'completed', kanban_column: 'done' } });
       const slot = findNextAvailableSlot(events, new Date(), settings);
@@ -184,7 +184,7 @@ export default function Dashboard() {
           source_email_id: email.id,
           kanban_column: column,
           color: 'blue',
-          status: column === 'done' ? 'completed' : column === 'cancelled' ? 'cancelled' : 'scheduled',
+          status: column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled',
         });
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       }
@@ -201,7 +201,7 @@ export default function Dashboard() {
         const updates = { kanban_column: targetColumn };
         if (targetColumn === 'done') {
           updates.status = 'completed';
-        } else if (targetColumn === 'cancelled') {
+        } else if (targetColumn === 'past') {
           updates.status = 'cancelled';
         } else if (targetColumn === 'doing') {
           updates.status = 'scheduled';

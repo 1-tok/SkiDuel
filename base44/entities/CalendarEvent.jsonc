@@ -67,7 +67,7 @@
         "todo",
         "doing",
         "done",
-        "cancelled"
+        "past"
       ],
       "default": "doing"
     },
