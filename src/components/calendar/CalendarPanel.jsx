@@ -12,6 +12,7 @@ export default function CalendarPanel({ events, settings, onUpdateEvent }) {
 
   const workStart = settings?.work_start_hour ?? 9;
   const workEnd = settings?.work_end_hour ?? 18;
+  const previewDuration = settings?.default_event_duration ?? 30;
 
   // Scroll to working hours on mount
   useEffect(() => {
@@ -55,6 +56,7 @@ export default function CalendarPanel({ events, settings, onUpdateEvent }) {
               workStart={workStart}
               workEnd={workEnd}
               onUpdateEvent={onUpdateEvent}
+              previewDuration={previewDuration}
             />
           ) : (
             weekDays.map(day => (
@@ -66,6 +68,7 @@ export default function CalendarPanel({ events, settings, onUpdateEvent }) {
                 workEnd={workEnd}
                 showDateHeader
                 onUpdateEvent={onUpdateEvent}
+                previewDuration={previewDuration}
               />
             ))
           )}

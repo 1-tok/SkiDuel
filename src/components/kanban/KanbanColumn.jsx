@@ -30,7 +30,7 @@ export default function KanbanColumn({ columnId, events }) {
             ref={provided.innerRef}
             {...provided.droppableProps}
             className={`flex-1 overflow-y-auto p-3 space-y-2 min-h-[200px] rounded-b-xl transition-colors ${
-              snapshot.isDraggingOver ? 'bg-primary/5' : ''
+              snapshot.isDraggingOver ? 'bg-primary/10 ring-2 ring-primary/30 ring-inset' : ''
             }`}
           >
             {events.length === 0 && (

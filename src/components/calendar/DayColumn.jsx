@@ -5,10 +5,11 @@ import CalendarEvent from './CalendarEvent';
 
 const HOUR_HEIGHT = 60; // px per hour
 
-export default function DayColumn({ date, events, workStart = 9, workEnd = 18, showDateHeader = false, onUpdateEvent }) {
+export default function DayColumn({ date, events, workStart = 9, workEnd = 18, showDateHeader = false, onUpdateEvent, previewDuration = 30 }) {
   const containerRef = useRef(null);
   const [draggingEvent, setDraggingEvent] = useState(null); // { event, offsetMinutes, ghostTop }
   const dragState = useRef(null);
+  const [overY, setOverY] = useState(null);
 
   const dayEvents = events.filter(e => isSameDay(parseISO(e.start_time), date));
   const today = isToday(date);
@@ -61,6 +62,13 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
 
   // Snap minutes to nearest 15
   const snapMinutes = (minutes) => Math.round(minutes / 15) * 15;
+
+  const topToTimeStr = (topPx) => {
+    const mins = Math.round((topPx / HOUR_HEIGHT) * 60);
+    const d = new Date(date);
+    d.setHours(Math.floor(mins / 60), mins % 60, 0, 0);
+    return format(d, 'HH:mm');
+  };
 
   const getMinutesFromY = useCallback((y) => {
     if (!containerRef.current) return 0;
@@ -147,8 +155,15 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
               containerRef.current = el;
             }}
             {...provided.droppableProps}
-            className={`relative select-none ${snapshot.isDraggingOver ? 'bg-primary/5' : ''}`}
+            className={`relative select-none transition-colors ${snapshot.isDraggingOver ? 'bg-primary/10' : ''}`}
             style={{ height: `${24 * HOUR_HEIGHT}px` }}
+            onMouseMove={(e) => {
+              if (!snapshot.isDraggingOver) { if (overY !== null) setOverY(null); return; }
+              const minutes = snapMinutes(getMinutesFromY(e.clientY));
+              const clamped = Math.max(0, Math.min(23 * 60, minutes));
+              setOverY((clamped / 60) * HOUR_HEIGHT);
+            }}
+            onMouseLeave={() => setOverY(null)}
           >
             {/* Hour lines */}
             {hours.map(hour => (
@@ -195,6 +210,16 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, s
               );
             })}
 
+            {snapshot.isDraggingOver && overY != null && (
+              <div
+                className="absolute left-1 right-1 z-20 rounded-md border-2 border-dashed border-primary bg-primary/15 pointer-events-none"
+                style={{ top: `${overY}px`, height: `${Math.max((previewDuration / 60) * HOUR_HEIGHT, 24)}px` }}
+              >
+                <span className="absolute -top-4 left-0 text-[10px] text-primary font-semibold bg-background px-1 rounded shadow-sm whitespace-nowrap">
+                  {topToTimeStr(overY)}
+                </span>
+              </div>
+            )}
             {provided.placeholder}
           </div>
         )}
