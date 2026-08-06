@@ -13,6 +13,7 @@ import CalendarPanel from '@/components/calendar/CalendarPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
 import FollowUpModal from '@/components/FollowUpModal';
 import CalendarFilter from '@/components/calendar/CalendarFilter';
+import ThemeToggle from '@/components/ThemeToggle';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -329,6 +330,7 @@ export default function Dashboard() {
                 <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing…' : 'Sync'}
               </Button>
+              <ThemeToggle />
             </div>
           </div>
 
