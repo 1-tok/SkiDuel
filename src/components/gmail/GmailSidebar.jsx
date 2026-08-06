@@ -49,7 +49,7 @@ export default function GmailSidebar({ emails, onMarkRead, onSchedule, mailAccou
           <div 
             ref={provided.innerRef}
             {...provided.droppableProps}
-            className="flex-1 overflow-y-auto p-3 space-y-2"
+            className="flex-1 overflow-y-auto overscroll-y-contain p-3 space-y-2"
           >
             {visibleEmails.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center">

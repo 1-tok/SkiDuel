@@ -14,12 +14,14 @@ export default function CalendarPanel({ events, settings, onUpdateEvent }) {
   const workEnd = settings?.work_end_hour ?? 18;
   const previewDuration = settings?.default_event_duration ?? 30;
 
-  // Scroll to working hours on mount
+  // Default the calendar to the current time of day at the top on mount
   useEffect(() => {
     if (scrollRef.current) {
-      scrollRef.current.scrollTop = (workStart - 1) * HOUR_HEIGHT;
+      const now = new Date();
+      const minutesIntoDay = now.getHours() * 60 + now.getMinutes();
+      scrollRef.current.scrollTop = Math.max(0, (minutesIntoDay / 60) * HOUR_HEIGHT - HOUR_HEIGHT * 0.25);
     }
-  }, [workStart]);
+  }, []);
 
   const weekStart = startOfWeek(currentDate);
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -33,7 +35,7 @@ export default function CalendarPanel({ events, settings, onUpdateEvent }) {
         setViewMode={setViewMode}
       />
       
-      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain">
         <div className="flex">
           {/* Time gutter */}
           <div className="w-14 flex-shrink-0 relative" style={{ height: `${24 * HOUR_HEIGHT}px` }}>
