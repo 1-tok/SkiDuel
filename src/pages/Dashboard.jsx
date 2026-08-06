@@ -321,6 +321,14 @@ export default function Dashboard() {
                 <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing…' : 'Sync'}
               </Button>
+              <div className="flex items-center gap-1.5 pl-2 ml-1 border-l border-border">
+                <span className="text-sm font-semibold text-foreground tracking-tight">Calkanban</span>
+                <img
+                  src="https://media.base44.com/images/public/6a0383b6225245c6dd116653/1946bb15d_ChatGPTImageAug6202612_27_39PM.png"
+                  alt="Calkanban"
+                  className="w-6 h-6 rounded-md object-cover"
+                />
+              </div>
             </div>
           </div>
 
