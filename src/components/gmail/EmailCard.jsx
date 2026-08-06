@@ -27,6 +27,9 @@ export default function EmailCard({ email, onMarkRead, onSchedule, isDragging })
           </div>
           <p className="text-xs font-medium text-foreground/80 truncate mb-0.5">{email.subject}</p>
           <p className="text-[11px] text-muted-foreground truncate">{email.preview}</p>
+          {email.source_account && (
+            <p className="text-[9px] text-muted-foreground/70 truncate mt-0.5">via {email.source_account}</p>
+          )}
         </div>
       </div>
       

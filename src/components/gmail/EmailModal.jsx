@@ -31,6 +31,9 @@ export default function EmailModal({ email, open, onClose, onMarkRead, onSchedul
           </div>
           <DialogTitle className="text-base leading-snug">{email.subject}</DialogTitle>
           {timeStr && <p className="text-xs text-muted-foreground mt-1">{timeStr}</p>}
+          {email.source_account && (
+            <p className="text-[10px] text-muted-foreground mt-0.5">via {email.source_account}</p>
+          )}
         </DialogHeader>
 
         <div className="mt-2 min-h-[80px] max-h-[300px] overflow-y-auto rounded-md bg-muted/40 p-3">

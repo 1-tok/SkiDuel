@@ -34,6 +34,10 @@
     "gmail_id": {
       "type": "string",
       "description": "Gmail message ID for sync"
+    },
+    "source_account": {
+      "type": "string",
+      "description": "The Gmail account this email was synced from"
     }
   },
   "required": [

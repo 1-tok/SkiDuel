@@ -1,0 +1,28 @@
+{
+  "name": "CalendarVisibility",
+  "type": "object",
+  "properties": {
+    "source_account": {
+      "type": "string",
+      "description": "The account (email) this calendar belongs to"
+    },
+    "calendar_name": {
+      "type": "string",
+      "description": "Display name of the calendar"
+    },
+    "is_visible": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether this calendar is shown in the calendar and board views"
+    },
+    "is_shared": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this calendar is shared with (not owned by) the user"
+    }
+  },
+  "required": [
+    "source_account",
+    "calendar_name"
+  ]
+}

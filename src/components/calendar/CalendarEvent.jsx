@@ -35,7 +35,7 @@ export default function CalendarEvent({ event, isDragging, style }) {
             )}
           </div>
           <span className={`text-[10px] ${colors.text} opacity-60 truncate block`}>
-            {startTime}{isShared && event.calendar_name ? ` · via ${event.calendar_name}` : (event.calendar_name && event.calendar_name !== 'primary' ? ` · ${event.calendar_name}` : '')}
+            {startTime}{isShared && event.calendar_name ? ` · via ${event.calendar_name}` : (event.calendar_name && event.calendar_name !== 'primary' ? ` · ${event.calendar_name}` : '')}{event.source_account && event.source_account !== 'primary' ? ` · ${event.source_account}` : ''}
           </span>
         </div>
       </div>

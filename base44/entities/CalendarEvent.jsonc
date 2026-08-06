@@ -66,6 +66,10 @@
       "default": false,
       "description": "True if the event is from a calendar shared with (not owned by) the user"
     },
+    "source_account": {
+      "type": "string",
+      "description": "The account (email) this event was synced from"
+    },
     "kanban_column": {
       "type": "string",
       "enum": [

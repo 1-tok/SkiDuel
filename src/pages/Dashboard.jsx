@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext } from '@hello-pangea/dnd';
@@ -12,6 +12,7 @@ import GmailSidebar from '@/components/gmail/GmailSidebar';
 import CalendarPanel from '@/components/calendar/CalendarPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
 import FollowUpModal from '@/components/FollowUpModal';
+import CalendarFilter from '@/components/calendar/CalendarFilter';
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -56,6 +57,22 @@ export default function Dashboard() {
     queryFn: () => base44.entities.UserSettings.list('-created_date', 1),
   });
   const settings = settingsList[0] || {};
+
+  const { data: visibility = [] } = useQuery({
+    queryKey: ['calendarVisibility'],
+    queryFn: () => base44.entities.CalendarVisibility.list('-created_date', 200),
+  });
+
+  // Filter out events from hidden calendars (manual/gmail always shown)
+  const visibleEvents = useMemo(() => {
+    const hidden = new Set(
+      visibility.filter(v => !v.is_visible).map(v => `${v.source_account || ''}|${v.calendar_name}`)
+    );
+    return events.filter(e => {
+      if (e.source !== 'google_calendar' || !e.calendar_name) return true;
+      return !hidden.has(`${e.source_account || ''}|${e.calendar_name}`);
+    });
+  }, [events, visibility]);
 
   // Mutations
   const updateEmail = useMutation({
@@ -281,7 +298,8 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              <CalendarFilter visibility={visibility} events={events} />
               <Button
                 variant="outline"
                 size="sm"
@@ -299,12 +317,12 @@ export default function Dashboard() {
           <div className="flex-1 overflow-hidden">
             {view === 'calendar' ? (
               <CalendarPanel
-                events={events}
+                events={visibleEvents}
                 settings={settings}
                 onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
               />
             ) : (
-              <KanbanPanel events={events} />
+              <KanbanPanel events={visibleEvents} />
             )}
           </div>
         </div>

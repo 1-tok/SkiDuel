@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { format } from 'npm:date-fns@3.6.0';
 
-function mapGCalEvent(gcEvent, calendarName, isShared) {
+function mapGCalEvent(gcEvent, calendarName, isShared, sourceAccount) {
   const start = gcEvent.start?.dateTime || gcEvent.start?.date;
   const end = gcEvent.end?.dateTime || gcEvent.end?.date;
   if (!start || !end) return null;
@@ -32,6 +32,7 @@ function mapGCalEvent(gcEvent, calendarName, isShared) {
     source: 'google_calendar',
     calendar_name: calendarName,
     is_shared_calendar: !!isShared,
+    source_account: sourceAccount || '',
     kanban_column: status === 'cancelled' ? 'past' : isToday ? 'doing' : 'todo',
     color: colorMap[gcEvent.colorId] || 'blue',
     gcal_event_id: gcEvent.id,
@@ -73,6 +74,25 @@ Deno.serve(async (req) => {
     if (!calListRes.ok) return Response.json({ error: 'Failed to list calendars' }, { status: 500 });
     const calListData = await calListRes.json();
     const calendars = (calListData.items || []).filter(c => c.selected !== false);
+    const accountEmail = (calendars.find(c => c.primary) || {}).id || (calendars[0] || {}).id || '';
+
+    // Ensure a visibility record exists for each calendar (default visible)
+    const existingVis = await base44.asServiceRole.entities.CalendarVisibility.list('-created_date', 200);
+    const visByKey = {};
+    for (const v of existingVis) visByKey[`${v.source_account}|${v.calendar_name}`] = v;
+    for (const cal of calendars) {
+      const calName = cal.summary || cal.id;
+      const key = `${accountEmail}|${calName}`;
+      if (!visByKey[key]) {
+        await base44.asServiceRole.entities.CalendarVisibility.create({
+          source_account: accountEmail,
+          calendar_name: calName,
+          is_visible: true,
+          is_shared: cal.accessRole && cal.accessRole !== 'owner',
+        });
+        visByKey[key] = true;
+      }
+    }
 
     // Get existing gcal events
     const existingEvents = await base44.asServiceRole.entities.CalendarEvent.filter({ source: 'google_calendar' });
@@ -115,7 +135,7 @@ Deno.serve(async (req) => {
       const isShared = cal.accessRole && cal.accessRole !== 'owner';
 
     for (const gcEvent of items) {
-        const mapped = mapGCalEvent(gcEvent, calName, isShared);
+        const mapped = mapGCalEvent(gcEvent, calName, isShared, accountEmail);
         if (!mapped) continue;
 
         const existing = existingByGCalId[gcEvent.id];

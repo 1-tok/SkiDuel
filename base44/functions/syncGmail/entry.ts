@@ -48,6 +48,16 @@ Deno.serve(async (req) => {
     const { accessToken } = await base44.asServiceRole.connectors.getConnection('gmail');
     const authHeader = { Authorization: `Bearer ${accessToken}` };
 
+    // Identify the source Gmail account
+    let sourceAccount = '';
+    try {
+      const profileRes = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/profile', { headers: authHeader });
+      if (profileRes.ok) {
+        const profile = await profileRes.json();
+        sourceAccount = profile.emailAddress || '';
+      }
+    } catch {}
+
     // Fetch unread emails from INBOX
     const listRes = await fetch(
       'https://gmail.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&q=is:unread&maxResults=20',
@@ -92,6 +102,7 @@ Deno.serve(async (req) => {
         is_read: false,
         is_actioned: false,
         gmail_id: msgId,
+        source_account: sourceAccount,
       });
     }
 
