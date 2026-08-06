@@ -193,26 +193,34 @@ export default function Dashboard() {
     }
   }, [events, settings, updateEvent, createEvent]);
 
-  // Create a calendar event locally, then push it to the connected Google Calendar
+  // Push a scheduled item to Google Calendar, then create the local event with the
+  // gcal id already set so the webhook sync updates it instead of duplicating it.
   const createAndPushEvent = useCallback(async (data) => {
-    const created = await createEvent.mutateAsync(data);
-    try {
-      const res = await base44.functions.invoke('createCalendarEvent', {
-        title: data.title,
-        description: data.description || '',
-        start_time: data.start_time,
-        end_time: data.end_time,
-      });
-      if (res?.gcal_event_id) {
-        await base44.entities.CalendarEvent.update(created.id, {
-          gcal_event_id: res.gcal_event_id,
-          source: 'google_calendar',
-          calendar_name: 'primary',
+    let gcalEventId = null;
+    if (data.status === 'scheduled') {
+      try {
+        const res = await base44.functions.invoke('createCalendarEvent', {
+          title: data.title,
+          description: data.description || '',
+          start_time: data.start_time,
+          end_time: data.end_time,
         });
-        queryClient.invalidateQueries({ queryKey: ['events'] });
+        gcalEventId = res?.gcal_event_id || null;
+      } catch (e) {
+        toast.error('Could not add to Google Calendar: ' + (e?.message || e));
       }
-    } catch (e) {
-      toast.error('Could not add to Google Calendar: ' + (e?.message || e));
+    }
+    const created = await createEvent.mutateAsync({
+      ...data,
+      ...(gcalEventId ? { gcal_event_id: gcalEventId, source: 'google_calendar', calendar_name: 'primary' } : {}),
+    });
+    if (gcalEventId) {
+      // Remove any webhook-created duplicate that shares the same gcal id
+      try {
+        const dups = await base44.entities.CalendarEvent.filter({ gcal_event_id: gcalEventId });
+        await Promise.all(dups.filter(d => d.id !== created.id).map(d => base44.entities.CalendarEvent.delete(d.id)));
+      } catch {}
+      queryClient.invalidateQueries({ queryKey: ['events'] });
     }
     return created;
   }, [createEvent, queryClient]);
@@ -299,25 +307,37 @@ export default function Dashboard() {
           }
         }
         await updateEvent.mutateAsync({ id: event.id, data: updates });
-        // Moving to Doing schedules it into the next available slot and creates the Google Calendar entry
-        if (targetColumn === 'doing' && slot && !event.gcal_event_id) {
+        // Moving to Doing schedules it into the next available slot and syncs the Google Calendar entry
+        if (targetColumn === 'doing' && slot) {
           try {
-            const res = await base44.functions.invoke('createCalendarEvent', {
-              title: event.title,
-              description: event.description || '',
-              start_time: slot.start_time,
-              end_time: slot.end_time,
-            });
-            if (res?.gcal_event_id) {
-              await base44.entities.CalendarEvent.update(event.id, {
-                gcal_event_id: res.gcal_event_id,
-                source: 'google_calendar',
-                calendar_name: 'primary',
+            if (event.gcal_event_id) {
+              await base44.functions.invoke('updateGCalEvent', {
+                gcal_event_id: event.gcal_event_id,
+                start_time: slot.start_time,
+                end_time: slot.end_time,
               });
-              queryClient.invalidateQueries({ queryKey: ['events'] });
+            } else {
+              const res = await base44.functions.invoke('createCalendarEvent', {
+                title: event.title,
+                description: event.description || '',
+                start_time: slot.start_time,
+                end_time: slot.end_time,
+              });
+              if (res?.gcal_event_id) {
+                await base44.entities.CalendarEvent.update(event.id, {
+                  gcal_event_id: res.gcal_event_id,
+                  source: 'google_calendar',
+                  calendar_name: 'primary',
+                });
+                try {
+                  const dups = await base44.entities.CalendarEvent.filter({ gcal_event_id: res.gcal_event_id });
+                  await Promise.all(dups.filter(d => d.id !== event.id).map(d => base44.entities.CalendarEvent.delete(d.id)));
+                } catch {}
+                queryClient.invalidateQueries({ queryKey: ['events'] });
+              }
             }
           } catch (e) {
-            toast.error('Could not add to Google Calendar: ' + (e?.message || e));
+            toast.error('Could not sync to Google Calendar: ' + (e?.message || e));
           }
         }
       } else if (destination.droppableId.startsWith('calendar-')) {

@@ -33,7 +33,7 @@ function mapGCalEvent(gcEvent, calendarName, isShared, sourceAccount) {
     calendar_name: calendarName,
     is_shared_calendar: !!isShared,
     source_account: sourceAccount || '',
-    kanban_column: status === 'cancelled' ? 'past' : isToday ? 'doing' : 'todo',
+    _isToday: isToday,
     color: colorMap[gcEvent.colorId] || 'blue',
     gcal_event_id: gcEvent.id,
   };
@@ -119,13 +119,19 @@ async function syncOneCalendarAccount(base44, accessToken, existingByGCalId, exi
     for (const gcEvent of items) {
       const mapped = mapGCalEvent(gcEvent, calName, isShared, accountEmail);
       if (!mapped) continue;
-
+      const { _isToday, ...fields } = mapped;
+      const kanbanForNew = mapped.status === 'cancelled' ? 'past' : _isToday ? 'doing' : 'todo';
       const existing = existingByGCalId[gcEvent.id];
       if (existing) {
-        await base44.asServiceRole.entities.CalendarEvent.update(existing.id, mapped);
+        const update = { ...fields };
+        // Preserve the user's terminal kanban placements; otherwise re-derive by day
+        if (existing.kanban_column !== 'done' && existing.kanban_column !== 'past') {
+          update.kanban_column = kanbanForNew;
+        }
+        await base44.asServiceRole.entities.CalendarEvent.update(existing.id, update);
         updated++;
       } else {
-        await base44.entities.CalendarEvent.create(mapped);
+        await base44.entities.CalendarEvent.create({ ...fields, kanban_column: kanbanForNew });
         created++;
       }
     }
@@ -149,10 +155,15 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const existingEvents = await base44.asServiceRole.entities.CalendarEvent.filter({ source: 'google_calendar' });
+    const existingEvents = await base44.asServiceRole.entities.CalendarEvent.list('-created_date', 500);
     const existingByGCalId = {};
     for (const e of existingEvents) {
-      if (e.gcal_event_id) existingByGCalId[e.gcal_event_id] = e;
+      if (!e.gcal_event_id) continue;
+      if (existingByGCalId[e.gcal_event_id]) {
+        try { await base44.asServiceRole.entities.CalendarEvent.delete(e.id); } catch {}
+      } else {
+        existingByGCalId[e.gcal_event_id] = e;
+      }
     }
 
     const existingVis = await base44.asServiceRole.entities.CalendarVisibility.list('-created_date', 200);

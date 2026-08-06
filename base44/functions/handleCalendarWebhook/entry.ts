@@ -30,7 +30,7 @@ function mapGCalEvent(gcEvent) {
     duration_minutes: durationMinutes,
     status,
     source: 'google_calendar',
-    kanban_column: status === 'cancelled' ? 'cancelled' : isToday ? 'doing' : 'todo',
+    _isToday: isToday,
     color: colorMap[gcEvent.colorId] || 'blue',
     gcal_event_id: gcEvent.id,
   };
@@ -79,21 +79,33 @@ Deno.serve(async (req) => {
       pageData = await nextRes.json();
     }
 
-    // Get existing gcal events
-    const existingEvents = await base44.asServiceRole.entities.CalendarEvent.filter({ source: 'google_calendar' });
+    // Match existing events by gcal_event_id (any source) and clean up duplicates
+    const existingEvents = await base44.asServiceRole.entities.CalendarEvent.list('-created_date', 500);
     const existingByGCalId = {};
     for (const e of existingEvents) {
-      if (e.gcal_event_id) existingByGCalId[e.gcal_event_id] = e;
+      if (!e.gcal_event_id) continue;
+      if (existingByGCalId[e.gcal_event_id]) {
+        try { await base44.asServiceRole.entities.CalendarEvent.delete(e.id); } catch {}
+      } else {
+        existingByGCalId[e.gcal_event_id] = e;
+      }
     }
 
     for (const gcEvent of allItems) {
       const mapped = mapGCalEvent(gcEvent);
       if (!mapped) continue;
+      const { _isToday, ...fields } = mapped;
+      const kanbanForNew = mapped.status === 'cancelled' ? 'past' : _isToday ? 'doing' : 'todo';
       const existing = existingByGCalId[gcEvent.id];
       if (existing) {
-        await base44.asServiceRole.entities.CalendarEvent.update(existing.id, mapped);
+        const update = { ...fields };
+        // Preserve the user's terminal kanban placements; otherwise re-derive by day
+        if (existing.kanban_column !== 'done' && existing.kanban_column !== 'past') {
+          update.kanban_column = kanbanForNew;
+        }
+        await base44.asServiceRole.entities.CalendarEvent.update(existing.id, update);
       } else {
-        await base44.asServiceRole.entities.CalendarEvent.create(mapped);
+        await base44.asServiceRole.entities.CalendarEvent.create({ ...fields, kanban_column: kanbanForNew });
       }
     }
 
