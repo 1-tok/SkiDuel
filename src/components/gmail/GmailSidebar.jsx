@@ -14,7 +14,7 @@ export default function GmailSidebar({ emails, onMarkRead, onSchedule, mailAccou
     : emails.filter(e => !e.is_read && !e.is_actioned);
 
   return (
-    <div className="w-[280px] min-w-[280px] bg-card border-r border-border flex flex-col h-full">
+    <div className="bg-card flex flex-col h-full">
       {/* Header */}
       <div className="p-4 border-b border-border">
         <div className="flex items-center gap-2 mb-3">

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext } from '@hello-pangea/dnd';
+import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { format, parseISO, isSameDay, isBefore } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
 import { RefreshCw, CalendarDays, List } from 'lucide-react';
@@ -272,7 +273,8 @@ export default function Dashboard() {
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
-      <div className="h-screen flex overflow-hidden bg-background">
+      <PanelGroup direction="horizontal" className="h-screen overflow-hidden bg-background">
+        <Panel defaultSize={22} minSize={14} maxSize={45} className="min-w-0">
         <GmailSidebar
           emails={emails}
           onMarkRead={handleMarkRead}
@@ -280,9 +282,11 @@ export default function Dashboard() {
           mailAccounts={mailAccounts}
           calendarAccounts={calendarAccounts}
         />
-
+        </Panel>
+        <PanelResizeHandle className="w-1.5 bg-border hover:bg-primary/30 transition-colors cursor-col-resize data-[resize-handle-state=drag]:bg-primary/50" />
+        <Panel defaultSize={78} className="min-w-0">
         {/* Main area with toggle */}
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="h-full flex flex-col min-w-0">
           {/* Toggle bar */}
           <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card">
             <div className="flex items-center gap-1.5 pr-3 mr-1 border-r border-border">
@@ -347,7 +351,8 @@ export default function Dashboard() {
             )}
           </div>
         </div>
-      </div>
+        </Panel>
+      </PanelGroup>
 
       <FollowUpModal
         event={followUpEvent}
