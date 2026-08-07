@@ -7,6 +7,7 @@ import { Mail, Reply, ReplyAll, Forward, Send, Loader2, ArrowLeft, Check, ListTo
 import { format, parseISO } from 'date-fns';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
+import RichText from '@/components/RichText';
 
 export default function EmailModal({ email, eventId, open, onClose, onSetFate }) {
   const [body, setBody] = useState('');
@@ -108,7 +109,7 @@ export default function EmailModal({ email, eventId, open, onClose, onSetFate })
                   <Loader2 className="w-4 h-4 animate-spin" /> Loading full message…
                 </div>
               ) : (
-                <p className="text-sm text-foreground/80 whitespace-pre-wrap leading-relaxed">{body || 'No content available.'}</p>
+                <RichText content={body || 'No content available.'} className="text-sm text-foreground/80" />
               )}
             </div>
 

@@ -4,6 +4,7 @@ import { Mail, Clock, Calendar, FileText, X, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { getEventColor } from '@/lib/scheduling';
+import RichText from '@/components/RichText';
 
 const statusLabels = {
   scheduled: { label: 'Scheduled', className: 'bg-blue-100 text-blue-700' },
@@ -86,7 +87,7 @@ export default function EventModal({ event, open, onClose, onDelete }) {
           {event.description && (
             <div className="flex items-start gap-2 text-sm text-muted-foreground">
               <FileText className="w-4 h-4 flex-shrink-0 mt-0.5" />
-              <p className="whitespace-pre-wrap leading-relaxed">{event.description}</p>
+              <RichText content={event.description} className="text-sm text-muted-foreground" />
             </div>
           )}
 
@@ -94,7 +95,7 @@ export default function EventModal({ event, open, onClose, onDelete }) {
           {event.followup_note && (
             <div className="rounded-lg bg-orange-50 border border-orange-200 p-3">
               <p className="text-xs font-medium text-orange-700 mb-1">Follow-up note</p>
-              <p className="text-sm text-orange-800">{event.followup_note}</p>
+              <RichText content={event.followup_note} className="text-sm text-orange-800" />
             </div>
           )}
         </div>
