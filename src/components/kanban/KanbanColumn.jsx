@@ -10,7 +10,7 @@ const columnConfig = {
   past: { label: 'Past', color: 'bg-slate-400', emptyText: 'No past items' },
 };
 
-export default function KanbanColumn({ columnId, events, onAdd }) {
+export default function KanbanColumn({ columnId, events, onAdd, onDelete }) {
   const config = columnConfig[columnId];
 
   return (
@@ -54,7 +54,7 @@ export default function KanbanColumn({ columnId, events, onAdd }) {
                     {...provided.dragHandleProps}
                     data-kanban-card
                   >
-                    <KanbanCard event={event} isDragging={snapshot.isDragging} />
+                    <KanbanCard event={event} isDragging={snapshot.isDragging} onDelete={onDelete} />
                   </div>
                 )}
               </Draggable>

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Mail, Clock, GripVertical } from 'lucide-react';
+import { Mail, Clock, GripVertical, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getEventColor } from '@/lib/scheduling';
 import EventModal from './EventModal';
 
-export default function KanbanCard({ event, isDragging }) {
+export default function KanbanCard({ event, isDragging, onDelete }) {
   const [modalOpen, setModalOpen] = useState(false);
   const colors = getEventColor(event.color);
   const isCompleted = event.status === 'completed';
@@ -15,11 +15,20 @@ export default function KanbanCard({ event, isDragging }) {
     <>
       <div
         onClick={() => setModalOpen(true)}
-        className={`group bg-card rounded-lg border px-3 py-2.5 transition-all duration-150 cursor-pointer
+        className={`group relative bg-card rounded-lg border px-3 py-2.5 transition-all duration-150 cursor-pointer
           ${isDragging ? 'shadow-xl scale-[1.02] ring-2 ring-primary/20' : 'hover:shadow-md hover:-translate-y-0.5 border-border'}
           ${isCancelled ? 'opacity-50' : ''}
         `}
       >
+        {onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(event); }}
+            title="Delete"
+            className="absolute top-1.5 right-1.5 p-1 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <Trash2 className="w-3 h-3" />
+          </button>
+        )}
         <div className="flex items-start gap-2">
           <GripVertical className="w-3 h-3 text-muted-foreground/30 mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -47,7 +56,7 @@ export default function KanbanCard({ event, isDragging }) {
         </div>
       </div>
 
-      <EventModal event={event} open={modalOpen} onClose={() => setModalOpen(false)} />
+      <EventModal event={event} open={modalOpen} onClose={() => setModalOpen(false)} onDelete={onDelete} />
     </>
   );
 }

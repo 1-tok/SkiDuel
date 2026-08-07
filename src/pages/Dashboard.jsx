@@ -159,6 +159,48 @@ export default function Dashboard() {
     updateEmail.mutate({ id: email.id, data: { is_read: true, is_actioned: true } });
   }, [updateEmail]);
 
+  const handleDeleteEmail = useCallback(async (email) => {
+    if (email.gmail_id) {
+      try {
+        await base44.functions.invoke('deleteGmailMessage', { gmail_id: email.gmail_id, source_account: email.source_account });
+      } catch (e) {
+        toast.error('Removed locally, but could not trash in Gmail: ' + (e?.message || e));
+      }
+    }
+    try {
+      await base44.entities.Email.delete(email.id);
+      queryClient.invalidateQueries({ queryKey: ['emails'] });
+      toast.success('Email deleted');
+    } catch (e) {
+      toast.error('Delete failed: ' + (e?.message || e));
+    }
+  }, [queryClient]);
+
+  const handleDeleteEvent = useCallback(async (event) => {
+    if (event.is_shared_calendar) {
+      toast.error("You can't delete events from calendars shared with you");
+      return;
+    }
+    if (event.gcal_event_id) {
+      try {
+        await base44.functions.invoke('deleteGCalEvent', {
+          gcal_event_id: event.gcal_event_id,
+          calendar_id: event.calendar_name || 'primary',
+          source_account: event.source_account,
+        });
+      } catch (e) {
+        toast.error('Removed locally, but could not delete from Google Calendar: ' + (e?.message || e));
+      }
+    }
+    try {
+      await base44.entities.CalendarEvent.delete(event.id);
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success('Item deleted');
+    } catch (e) {
+      toast.error('Delete failed: ' + (e?.message || e));
+    }
+  }, [queryClient]);
+
   const handleScheduleEmail = useCallback((email) => {
     const today = new Date();
     const slot = findNextAvailableSlot(events, today, settings);
@@ -492,6 +534,7 @@ export default function Dashboard() {
           onMarkRead={handleMarkRead}
           onSchedule={handleScheduleEmail}
           onOpen={handleOpenEmail}
+          onDelete={handleDeleteEmail}
           mailAccounts={mailAccounts}
           calendarAccounts={calendarAccounts}
         />
@@ -582,6 +625,7 @@ export default function Dashboard() {
                 events={[...visibleEvents, ...ghosts]}
                 settings={settings}
                 onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
+                onDeleteEvent={handleDeleteEvent}
                 onAddAt={(dateInput, minutes) => {
                   const date = typeof dateInput === 'string' ? dateInput : format(dateInput, 'yyyy-MM-dd');
                   const d = new Date(date + 'T00:00:00');
@@ -590,9 +634,9 @@ export default function Dashboard() {
                 }}
               />
             ) : view === 'schedule' ? (
-              <ScheduleView events={[...visibleEvents, ...ghosts]} onAdd={() => setAddState({ prefill: {} })} />
+              <ScheduleView events={[...visibleEvents, ...ghosts]} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} />
             ) : (
-              <KanbanPanel events={visibleEvents} onAdd={(column) => setAddState({ prefill: { column } })} />
+              <KanbanPanel events={visibleEvents} onAdd={(column) => setAddState({ prefill: { column } })} onDelete={handleDeleteEvent} />
             )}
           </div>
         </div>

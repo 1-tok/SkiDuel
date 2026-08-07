@@ -6,7 +6,7 @@ import EventModal from '../kanban/EventModal';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function WeekGridView({ days, events, onAddAt }) {
+export default function WeekGridView({ days, events, onAddAt, onDeleteEvent }) {
   const [modalEvent, setModalEvent] = useState(null);
 
   return (
@@ -67,7 +67,7 @@ export default function WeekGridView({ days, events, onAddAt }) {
         })}
       </div>
 
-      <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} />
+      <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} onDelete={onDeleteEvent} />
     </div>
   );
 }

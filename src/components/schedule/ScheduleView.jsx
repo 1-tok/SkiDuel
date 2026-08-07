@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { parseISO, format, isToday, isTomorrow } from 'date-fns';
-import { Mail, Share2, CalendarClock } from 'lucide-react';
+import { Mail, Share2, CalendarClock, Trash2 } from 'lucide-react';
 import { Droppable } from '@hello-pangea/dnd';
 import EventModal from '../kanban/EventModal';
 
@@ -11,7 +11,7 @@ const statusStyles = {
   needs_followup: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
 };
 
-export default function ScheduleView({ events, onAdd }) {
+export default function ScheduleView({ events, onAdd, onDelete }) {
   const [modalEvent, setModalEvent] = useState(null);
   const now = new Date();
   const upcoming = events
@@ -121,6 +121,15 @@ export default function ScheduleView({ events, onAdd }) {
                           </>
                         )}
                       </div>
+                      {!e.isGhost && onDelete && !e.is_shared_calendar && (
+                        <button
+                          onClick={(ev) => { ev.stopPropagation(); onDelete(e); }}
+                          title="Delete"
+                          className="self-center p-1.5 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -129,7 +138,7 @@ export default function ScheduleView({ events, onAdd }) {
             {provided.placeholder}
           </div>
 
-          <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} />
+          <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} onDelete={onDelete} />
         </div>
       )}
     </Droppable>

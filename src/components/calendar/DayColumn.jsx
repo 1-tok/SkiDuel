@@ -7,7 +7,7 @@ import { getEventColor, getCalendarColor } from '@/lib/scheduling';
 
 const HOUR_HEIGHT = 60; // px per hour
 
-export default function DayColumn({ date, events, workStart = 9, workEnd = 18, onUpdateEvent, previewDuration = 30, minWidth = 0, onAddAt }) {
+export default function DayColumn({ date, events, workStart = 9, workEnd = 18, onUpdateEvent, previewDuration = 30, minWidth = 0, onAddAt, onDeleteEvent }) {
   const containerRef = useRef(null);
   const [draggingEvent, setDraggingEvent] = useState(null);
   const dragState = useRef(null);
@@ -218,7 +218,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
                     style={{ ...style, top, zIndex: isDraggingThis ? 50 : 10 }}
                     className={`absolute transition-none ${isDraggingThis ? 'opacity-80 shadow-xl ring-2 ring-primary/30 rounded-lg' : ''}`}
                   >
-                    <CalendarEvent event={event} isDragging={isDraggingThis} style={{ position: 'relative', left: 0, right: 0, width: '100%', height: '100%' }} />
+                    <CalendarEvent event={event} isDragging={isDraggingThis} onDelete={onDeleteEvent} style={{ position: 'relative', left: 0, right: 0, width: '100%', height: '100%' }} />
                   </div>
                 );
               })}
@@ -275,7 +275,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
         </div>
       )}
 
-      <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} />
+      <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} onDelete={onDeleteEvent} />
     </div>
   );
 }

@@ -6,7 +6,7 @@ import EventModal from '../kanban/EventModal';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function MonthView({ currentDate, events, setCurrentDate, setViewMode }) {
+export default function MonthView({ currentDate, events, setCurrentDate, setViewMode, onDeleteEvent }) {
   const [modalEvent, setModalEvent] = useState(null);
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -74,7 +74,7 @@ export default function MonthView({ currentDate, events, setCurrentDate, setView
         })}
       </div>
 
-      <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} />
+      <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} onDelete={onDeleteEvent} />
     </div>
   );
 }

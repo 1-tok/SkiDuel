@@ -1,8 +1,8 @@
 import React from 'react';
-import { Check, Calendar, Mail, GripVertical } from 'lucide-react';
+import { Check, Calendar, Mail, GripVertical, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
-export default function EmailCard({ email, onMarkRead, onSchedule, onOpen, isDragging }) {
+export default function EmailCard({ email, onMarkRead, onSchedule, onOpen, onDelete, isDragging }) {
   const timeStr = email.timestamp ? format(parseISO(email.timestamp), 'HH:mm') : '';
 
   return (
@@ -33,6 +33,15 @@ export default function EmailCard({ email, onMarkRead, onSchedule, onOpen, isDra
               >
                 <Calendar className="w-3.5 h-3.5" />
               </button>
+              {onDelete && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(email); }}
+                  title="Delete"
+                  className="p-1 rounded-md text-muted-foreground/70 hover:text-destructive hover:bg-destructive/5 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
           </div>
           <p className="text-xs font-medium text-foreground/80 truncate mb-0.5">{email.subject}</p>

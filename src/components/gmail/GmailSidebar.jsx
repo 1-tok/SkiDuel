@@ -5,7 +5,7 @@ import EmailCard from './EmailCard';
 import SyncIntegrationsModal from './SyncIntegrationsModal';
 import { Draggable, Droppable } from '@hello-pangea/dnd';
 
-export default function GmailSidebar({ emails, onMarkRead, onSchedule, onOpen, mailAccounts = [], calendarAccounts = [] }) {
+export default function GmailSidebar({ emails, onMarkRead, onSchedule, onOpen, onDelete, mailAccounts = [], calendarAccounts = [] }) {
   const [showRead, setShowRead] = useState(false);
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
 
@@ -73,6 +73,7 @@ export default function GmailSidebar({ emails, onMarkRead, onSchedule, onOpen, m
                         onMarkRead={onMarkRead}
                         onSchedule={onSchedule}
                         onOpen={onOpen}
+                        onDelete={onDelete}
                         isDragging={snapshot.isDragging}
                       />
                     </div>

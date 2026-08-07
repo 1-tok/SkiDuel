@@ -1,9 +1,9 @@
 import React from 'react';
-import { Mail, GripVertical, Users } from 'lucide-react';
+import { Mail, GripVertical, Users, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getEventColor, getCalendarColor } from '@/lib/scheduling';
 
-export default function CalendarEvent({ event, isDragging, style, isGhost }) {
+export default function CalendarEvent({ event, isDragging, style, isGhost, onDelete }) {
   const colors = getEventColor(getCalendarColor(event));
   const isCompleted = event.status === 'completed';
   const isCancelled = event.status === 'cancelled';
@@ -13,7 +13,7 @@ export default function CalendarEvent({ event, isDragging, style, isGhost }) {
   return (
     <div
       style={style}
-      className={`rounded-lg border px-2.5 py-1.5 transition-all duration-150 overflow-hidden group h-full
+      className={`relative rounded-lg border px-2.5 py-1.5 transition-all duration-150 overflow-hidden group h-full
         ${isGhost
           ? 'border-dashed border-primary/60 bg-primary/5 animate-pulse'
           : `${colors.bg} ${colors.border} cursor-grab active:cursor-grabbing`}
@@ -26,6 +26,16 @@ export default function CalendarEvent({ event, isDragging, style, isGhost }) {
           <div className="w-3 h-3 mt-0.5 flex-shrink-0 border-2 border-primary/40 border-t-transparent rounded-full animate-spin" />
         ) : (
           <GripVertical className="w-3 h-3 text-muted-foreground/30 mt-0.5 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+        )}
+        {!isGhost && !isShared && onDelete && (
+          <button
+            onClick={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(event); }}
+            onMouseDown={(e) => e.stopPropagation()}
+            title="Delete"
+            className="absolute top-1 right-1 p-0.5 rounded text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+          >
+            <Trash2 className="w-2.5 h-2.5" />
+          </button>
         )}
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">

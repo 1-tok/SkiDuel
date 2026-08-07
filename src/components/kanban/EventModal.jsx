@@ -1,6 +1,6 @@
 import React from 'react';
 import { format, parseISO } from 'date-fns';
-import { Mail, Clock, Calendar, FileText, X } from 'lucide-react';
+import { Mail, Clock, Calendar, FileText, X, Trash2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { getEventColor } from '@/lib/scheduling';
@@ -19,7 +19,7 @@ const columnLabels = {
   cancelled: 'Cancelled',
 };
 
-export default function EventModal({ event, open, onClose }) {
+export default function EventModal({ event, open, onClose, onDelete }) {
   if (!event) return null;
 
   const colors = getEventColor(event.color);
@@ -98,6 +98,18 @@ export default function EventModal({ event, open, onClose }) {
             </div>
           )}
         </div>
+
+        {onDelete && !event.is_shared_calendar && (
+          <div className="pt-2 border-t border-border mt-3">
+            <button
+              onClick={() => { onDelete(event); onClose?.(); }}
+              className="flex items-center gap-2 text-sm text-destructive hover:text-destructive/80 transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              Delete item
+            </button>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
