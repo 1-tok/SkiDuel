@@ -113,6 +113,13 @@ export default function Dashboard() {
     });
   }, [events, visibility]);
 
+  // Items moved to the Past record are hidden from the active Calendar/Schedule views,
+  // but still surface in the Kanban "Past" column.
+  const activeEvents = useMemo(
+    () => visibleEvents.filter(e => e.kanban_column !== 'past' && e.status !== 'cancelled'),
+    [visibleEvents]
+  );
+
   const mailAccounts = useMemo(
     () => [...new Set(emails.map(e => e.source_account).filter(Boolean))],
     [emails]
@@ -160,44 +167,24 @@ export default function Dashboard() {
   }, [updateEmail]);
 
   const handleDeleteEmail = useCallback(async (email) => {
-    if (email.gmail_id) {
-      try {
-        await base44.functions.invoke('deleteGmailMessage', { gmail_id: email.gmail_id, source_account: email.source_account });
-      } catch (e) {
-        toast.error('Removed locally, but could not trash in Gmail: ' + (e?.message || e));
-      }
-    }
+    // Soft-delete: archive the email as a Past record (retain it, don't trash in Gmail).
     try {
-      await base44.entities.Email.delete(email.id);
+      await base44.entities.Email.update(email.id, { is_actioned: true, is_read: true });
       queryClient.invalidateQueries({ queryKey: ['emails'] });
-      toast.success('Email deleted');
+      toast.success('Moved to Past');
     } catch (e) {
-      toast.error('Delete failed: ' + (e?.message || e));
+      toast.error('Could not move to Past: ' + (e?.message || e));
     }
   }, [queryClient]);
 
   const handleDeleteEvent = useCallback(async (event) => {
-    if (event.is_shared_calendar) {
-      toast.error("You can't delete events from calendars shared with you");
-      return;
-    }
-    if (event.gcal_event_id) {
-      try {
-        await base44.functions.invoke('deleteGCalEvent', {
-          gcal_event_id: event.gcal_event_id,
-          calendar_id: event.calendar_name || 'primary',
-          source_account: event.source_account,
-        });
-      } catch (e) {
-        toast.error('Removed locally, but could not delete from Google Calendar: ' + (e?.message || e));
-      }
-    }
+    // Soft-delete: move the item into the Past record instead of permanently removing it.
     try {
-      await base44.entities.CalendarEvent.delete(event.id);
+      await base44.entities.CalendarEvent.update(event.id, { kanban_column: 'past', status: 'cancelled' });
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      toast.success('Item deleted');
+      toast.success('Moved to Past');
     } catch (e) {
-      toast.error('Delete failed: ' + (e?.message || e));
+      toast.error('Could not move to Past: ' + (e?.message || e));
     }
   }, [queryClient]);
 
@@ -624,7 +611,7 @@ export default function Dashboard() {
           <div className="flex-1 min-h-0 overflow-hidden">
             {view === 'calendar' ? (
               <CalendarPanel
-                events={[...visibleEvents, ...ghosts]}
+                events={[...activeEvents, ...ghosts]}
                 settings={settings}
                 onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
                 onDeleteEvent={handleDeleteEvent}
@@ -636,7 +623,7 @@ export default function Dashboard() {
                 }}
               />
             ) : view === 'schedule' ? (
-              <ScheduleView events={[...visibleEvents, ...ghosts]} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} />
+              <ScheduleView events={[...activeEvents, ...ghosts]} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} />
             ) : (
               <KanbanPanel events={visibleEvents} onAdd={(column) => setAddState({ prefill: { column } })} onDelete={handleDeleteEvent} />
             )}

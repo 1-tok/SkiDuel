@@ -107,7 +107,7 @@ export default function EventModal({ event, open, onClose, onDelete }) {
               className="flex items-center gap-2 text-sm text-destructive hover:text-destructive/80 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
-              Delete item
+              Move to Past
             </button>
           </div>
         )}
