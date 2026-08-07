@@ -88,7 +88,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg" onClick={(e) => e.stopPropagation()}>
         <DialogHeader>
           <div className="flex items-start gap-3 pr-6">
             <div className={`w-3 h-3 rounded-full ${colors.dot} mt-1.5 flex-shrink-0`} />
