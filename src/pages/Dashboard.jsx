@@ -25,6 +25,8 @@ function slotFromDropY(droppableId, clientY, durationMin) {
   const el = document.querySelector(`[data-rbd-droppable-id="${droppableId}"]`);
   if (!el || clientY == null) return null;
   const rect = el.getBoundingClientRect();
+  // Month-view day cells are short (no 24h axis) — can't map Y to a time slot.
+  if (rect.height < 24 * HOUR_HEIGHT * 0.5) return null;
   const scrollContainer = el.closest('[data-calendar-scroll]');
   const scrollTop = scrollContainer?.scrollTop ?? 0;
   const relY = clientY - rect.top + scrollTop;
@@ -337,7 +339,21 @@ export default function Dashboard() {
         const slot = slotFromDropY(destination.droppableId, dragPosRef.current.y, duration)
           || findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
         if (!slot) return;
-        const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
+        // Dropped directly onto an existing own event → attach the email to it.
+        const slotStart = parseISO(slot.start_time);
+        const dayOwn = events.filter(e => !e.is_shared_calendar && e.start_time && isSameDay(parseISO(e.start_time), new Date(targetDate)));
+        const hit = dayOwn.find(e => {
+          const es = parseISO(e.start_time);
+          const ee = e.end_time ? parseISO(e.end_time) : es;
+          return slotStart >= es && slotStart < ee;
+        });
+        if (hit) {
+          await updateEvent.mutateAsync({ id: hit.id, data: { source_email_id: email.id, source: 'gmail' } });
+          updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
+          toast.success(`Attached to "${hit.title}"`);
+          return;
+        }
+        const column = isSameDay(slotStart, today) ? 'doing' : 'todo';
         const data = emailEventData(email, slot, column, 'scheduled');
         const ghostId = `ghost-${Date.now()}`;
         setGhosts(prev => [...prev, { id: ghostId, ...data, isGhost: true }]);
