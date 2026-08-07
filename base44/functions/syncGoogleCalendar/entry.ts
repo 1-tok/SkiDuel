@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { format } from 'npm:date-fns@3.6.0';
+import { dedupeGcalEvents } from '../../shared/dedupeGcalEvents.ts';
 
 function mapGCalEvent(gcEvent, calendarName, isShared, sourceAccount) {
   const start = gcEvent.start?.dateTime || gcEvent.start?.date;
@@ -194,6 +195,8 @@ Deno.serve(async (req) => {
         results.push({ account: ac.label || ac.connector_id, error: e.message });
       }
     }
+
+    await dedupeGcalEvents(base44);
 
     return Response.json({ results });
   } catch (error) {

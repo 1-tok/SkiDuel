@@ -10,6 +10,7 @@ export default function AddItemModal({ prefill, open, onClose, onCreate }) {
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [time, setTime] = useState(format(new Date(), 'HH:mm'));
   const [duration, setDuration] = useState(10);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -19,19 +20,24 @@ export default function AddItemModal({ prefill, open, onClose, onCreate }) {
     setDuration(prefill?.duration ?? 10);
   }, [open, prefill]);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
+    if (!title.trim() || submitting) return;
     const start = new Date(`${date}T${time}:00`);
     const dur = Number(duration) || 10;
     const end = new Date(start.getTime() + dur * 60000);
-    onCreate({
-      title: title.trim(),
-      start_time: start.toISOString(),
-      end_time: end.toISOString(),
-      date,
-      duration_minutes: dur,
-    });
+    setSubmitting(true);
+    try {
+      await onCreate({
+        title: title.trim(),
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+        date,
+        duration_minutes: dur,
+      });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -60,8 +66,8 @@ export default function AddItemModal({ prefill, open, onClose, onCreate }) {
             <Input id="add-dur" type="number" min={5} step={5} value={duration} onChange={e => setDuration(e.target.value)} />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-            <Button type="submit">Add</Button>
+            <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
+            <Button type="submit" disabled={submitting}>{submitting ? 'Adding…' : 'Add'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

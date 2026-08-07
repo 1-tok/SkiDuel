@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { format } from 'npm:date-fns@3.6.0';
+import { dedupeGcalEvents } from '../../shared/dedupeGcalEvents.ts';
 
 function mapGCalEvent(gcEvent) {
   const start = gcEvent.start?.dateTime || gcEvent.start?.date;
@@ -117,6 +118,10 @@ Deno.serve(async (req) => {
         await base44.asServiceRole.entities.SyncState.create({ service: 'googlecalendar', sync_token: newSyncToken, last_synced: now });
       }
     }
+
+    // Final de-duplication pass: clean up any duplicate local records that a race
+    // between this webhook and an optimistic local create may have produced.
+    await dedupeGcalEvents(base44);
 
     return Response.json({ processed: allItems.length });
   } catch (error) {
