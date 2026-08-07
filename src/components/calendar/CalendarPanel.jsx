@@ -6,7 +6,7 @@ import MonthView from './MonthView';
 
 const HOUR_HEIGHT = 60;
 
-export default function CalendarPanel({ events, settings, onUpdateEvent }) {
+export default function CalendarPanel({ events, settings, onUpdateEvent, onAddAt }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('day');
   const scrollRef = useRef(null);
@@ -104,6 +104,7 @@ export default function CalendarPanel({ events, settings, onUpdateEvent }) {
               onUpdateEvent={onUpdateEvent}
               previewDuration={previewDuration}
               minWidth={minWidth}
+              onAddAt={onAddAt}
             />
           ))}
         </div>

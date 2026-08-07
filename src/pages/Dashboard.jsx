@@ -5,12 +5,13 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { format, parseISO, isSameDay, isBefore, startOfWeek, addDays } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
-import { RefreshCw, CalendarDays, List } from 'lucide-react';
+import { RefreshCw, CalendarDays, List, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 import GmailSidebar from '@/components/gmail/GmailSidebar';
 import EmailModal from '@/components/gmail/EmailModal';
+import AddItemModal from '@/components/AddItemModal';
 import CalendarPanel from '@/components/calendar/CalendarPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
 import ScheduleView from '@/components/schedule/ScheduleView';
@@ -43,6 +44,7 @@ export default function Dashboard() {
   const [ghosts, setGhosts] = useState([]);
   const [openEmail, setOpenEmail] = useState(null);
   const [openEmailEventId, setOpenEmailEventId] = useState(null);
+  const [addState, setAddState] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [view, setView] = useState('calendar'); // 'calendar' | 'board'
   const followUpTimersRef = useRef({});
@@ -254,6 +256,24 @@ export default function Dashboard() {
     await updateEvent.mutateAsync({ id: eventId, data: updates });
     if (fate === 'done') triggerCelebration(eventId);
   }, [events, settings, updateEvent, triggerCelebration]);
+
+  const handleCreateItem = useCallback(async (data) => {
+    const today = new Date();
+    const start = new Date(data.start_time);
+    const column = isSameDay(start, today) ? 'doing' : 'todo';
+    await createAndPushEvent({
+      title: data.title,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      date: data.date,
+      duration_minutes: data.duration_minutes,
+      source: 'manual',
+      kanban_column: column,
+      color: 'blue',
+      status: 'scheduled',
+    });
+    setAddState(null);
+  }, [createAndPushEvent]);
 
   // Push a scheduled item to Google Calendar, then create the local event with the
   // gcal id already set so the webhook sync updates it instead of duplicating it.
@@ -505,6 +525,15 @@ export default function Dashboard() {
             </div>
 
             <div className="ml-auto flex items-center gap-2">
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setAddState({ prefill: {} })}
+                className="h-7 gap-1.5 text-xs"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add
+              </Button>
               <CalendarFilter visibility={visibility} events={events} />
               <Button
                 variant="outline"
@@ -527,11 +556,16 @@ export default function Dashboard() {
                 events={[...visibleEvents, ...ghosts]}
                 settings={settings}
                 onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
+                onAddAt={(date, minutes) => {
+                  const d = new Date(date + 'T00:00:00');
+                  d.setMinutes(minutes);
+                  setAddState({ prefill: { date, time: format(d, 'HH:mm') } });
+                }}
               />
             ) : view === 'schedule' ? (
-              <ScheduleView events={[...visibleEvents, ...ghosts]} />
+              <ScheduleView events={[...visibleEvents, ...ghosts]} onAdd={() => setAddState({ prefill: {} })} />
             ) : (
-              <KanbanPanel events={visibleEvents} />
+              <KanbanPanel events={visibleEvents} onAdd={(column) => setAddState({ prefill: { column } })} />
             )}
           </div>
         </div>
@@ -551,6 +585,13 @@ export default function Dashboard() {
         open={!!openEmail}
         onClose={() => { setOpenEmail(null); setOpenEmailEventId(null); }}
         onSetFate={handleSetFate}
+      />
+
+      <AddItemModal
+        prefill={addState?.prefill || {}}
+        open={!!addState}
+        onClose={() => setAddState(null)}
+        onCreate={handleCreateItem}
       />
 
       <CelebrationOverlay

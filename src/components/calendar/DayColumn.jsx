@@ -6,7 +6,7 @@ import EventModal from '../kanban/EventModal';
 
 const HOUR_HEIGHT = 60; // px per hour
 
-export default function DayColumn({ date, events, workStart = 9, workEnd = 18, onUpdateEvent, previewDuration = 30, minWidth = 0 }) {
+export default function DayColumn({ date, events, workStart = 9, workEnd = 18, onUpdateEvent, previewDuration = 30, minWidth = 0, onAddAt }) {
   const containerRef = useRef(null);
   const [draggingEvent, setDraggingEvent] = useState(null); // { event, offsetMinutes, ghostTop }
   const dragState = useRef(null);
@@ -166,6 +166,11 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
               setOverY((clamped / 60) * HOUR_HEIGHT);
             }}
             onMouseLeave={() => setOverY(null)}
+            onClick={(e) => {
+              if (e.target.closest('[data-event-card]')) return;
+              const minutes = snapMinutes(getMinutesFromY(e.clientY));
+              onAddAt?.(date, Math.max(0, Math.min(23 * 60, minutes)));
+            }}
           >
             {/* Hour lines */}
             {hours.map(hour => (
@@ -198,6 +203,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
                 return (
                   <div
                     key={event.id}
+                    data-event-card
                     style={{ ...style, zIndex: 10 }}
                     className="absolute transition-none"
                   >
@@ -216,6 +222,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
               return (
                 <div
                   key={event.id}
+                  data-event-card
                   onMouseDown={(e) => handleEventMouseDown(e, event)}
                   style={{ ...style, top, zIndex: isDraggingThis ? 50 : 10 }}
                   className={`absolute transition-none ${isDraggingThis ? 'opacity-80 shadow-xl ring-2 ring-primary/30 rounded-lg' : ''}`}

@@ -2,7 +2,7 @@ import React from 'react';
 import { parseISO, isBefore, isToday } from 'date-fns';
 import KanbanColumn from './KanbanColumn';
 
-export default function KanbanPanel({ events }) {
+export default function KanbanPanel({ events, onAdd }) {
   const now = new Date();
   // Exclude events from calendars shared with the user — they only show on the Calendar view.
   const own = events.filter(e => !e.is_shared_calendar);
@@ -24,7 +24,7 @@ export default function KanbanPanel({ events }) {
   return (
     <div className="flex h-full bg-muted/30 p-4 gap-4 overflow-x-auto overscroll-contain">
       {['todo', 'doing', 'done', 'past'].map(col => (
-        <KanbanColumn key={col} columnId={col} events={columns[col]} />
+        <KanbanColumn key={col} columnId={col} events={columns[col]} onAdd={onAdd} />
       ))}
     </div>
   );

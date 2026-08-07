@@ -1,5 +1,6 @@
 import React from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
+import { Plus } from 'lucide-react';
 import KanbanCard from './KanbanCard';
 
 const columnConfig = {
@@ -9,7 +10,7 @@ const columnConfig = {
   past: { label: 'Past', color: 'bg-slate-400', emptyText: 'No past items' },
 };
 
-export default function KanbanColumn({ columnId, events }) {
+export default function KanbanColumn({ columnId, events, onAdd }) {
   const config = columnConfig[columnId];
 
   return (
@@ -21,6 +22,13 @@ export default function KanbanColumn({ columnId, events }) {
         <span className="ml-auto text-[10px] font-medium bg-muted text-muted-foreground rounded-full px-2 py-0.5">
           {events.length}
         </span>
+        <button
+          onClick={() => onAdd?.(columnId)}
+          title="Add item"
+          className="p-1 rounded-md text-muted-foreground/70 hover:text-primary hover:bg-primary/5 transition-colors"
+        >
+          <Plus className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Cards */}
@@ -29,6 +37,7 @@ export default function KanbanColumn({ columnId, events }) {
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
+            onClick={(e) => { if (!e.target.closest('[data-kanban-card]')) onAdd?.(columnId); }}
             className={`flex-1 overflow-y-auto p-3 space-y-2 min-h-[200px] rounded-b-xl transition-colors ${
               snapshot.isDraggingOver ? 'bg-primary/10 ring-2 ring-primary/30 ring-inset' : ''
             }`}
@@ -43,6 +52,7 @@ export default function KanbanColumn({ columnId, events }) {
                     ref={provided.innerRef}
                     {...provided.draggableProps}
                     {...provided.dragHandleProps}
+                    data-kanban-card
                   >
                     <KanbanCard event={event} isDragging={snapshot.isDragging} />
                   </div>

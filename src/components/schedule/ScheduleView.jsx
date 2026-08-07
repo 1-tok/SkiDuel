@@ -11,7 +11,7 @@ const statusStyles = {
   needs_followup: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
 };
 
-export default function ScheduleView({ events }) {
+export default function ScheduleView({ events, onAdd }) {
   const [modalEvent, setModalEvent] = useState(null);
   const now = new Date();
   const upcoming = events
@@ -40,17 +40,21 @@ export default function ScheduleView({ events }) {
         <div
           ref={provided.innerRef}
           {...provided.droppableProps}
+          onClick={(e) => { if (!e.target.closest('[data-schedule-item]')) onAdd?.(); }}
           className={`h-full overflow-y-auto overscroll-contain bg-muted/30 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/10' : ''}`}
         >
           <div className="max-w-2xl mx-auto p-4 space-y-6">
             {upcoming.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-20 text-center">
+              <button
+                onClick={(e) => { e.stopPropagation(); onAdd?.(); }}
+                className="flex flex-col items-center justify-center w-full py-20 text-center rounded-xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-colors"
+              >
                 <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-3">
                   <CalendarClock className="w-6 h-6 text-muted-foreground" />
                 </div>
                 <p className="text-sm text-muted-foreground">No upcoming events</p>
-                <p className="text-[11px] text-muted-foreground/60 mt-1">Drop an email here to schedule it</p>
-              </div>
+                <p className="text-[11px] text-muted-foreground/60 mt-1">Click to add an item, or drop an email here</p>
+              </button>
             )}
             {groups.map(g => (
               <div key={g.key}>
@@ -66,6 +70,7 @@ export default function ScheduleView({ events }) {
                   {g.items.map(e => (
                     <div
                       key={e.id}
+                      data-schedule-item
                       onClick={() => !e.isGhost && setModalEvent(e)}
                       className={`flex gap-3 bg-card rounded-lg border p-3 transition-shadow ${
                         e.isGhost
