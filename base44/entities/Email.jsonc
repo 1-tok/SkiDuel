@@ -37,7 +37,26 @@
     },
     "source_account": {
       "type": "string",
-      "description": "The Gmail account this email was synced from"
+      "description": "The account this message was synced from"
+    },
+    "channel": {
+      "type": "string",
+      "enum": [
+        "gmail",
+        "whatsapp",
+        "sms",
+        "linkedin"
+      ],
+      "default": "gmail",
+      "description": "Which channel this message came through"
+    },
+    "external_id": {
+      "type": "string",
+      "description": "External message id (Twilio SID, etc.) for dedupe across channels"
+    },
+    "body": {
+      "type": "string",
+      "description": "Full message body (for non-Gmail channels)"
     }
   },
   "required": [
