@@ -5,7 +5,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { format, parseISO, isSameDay, isBefore, startOfWeek, addDays } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
-import { RefreshCw, CalendarDays, List, Plus } from 'lucide-react';
+import { RefreshCw, CalendarDays, List, Plus, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -54,7 +54,7 @@ export default function Dashboard() {
   const [searchEvent, setSearchEvent] = useState(null);
   const [selectedEmailIds, setSelectedEmailIds] = useState(new Set());
   const [selectedEventIds, setSelectedEventIds] = useState(new Set());
-  const [view, setView] = useState('calendar'); // 'calendar' | 'board'
+  const [view, setView] = useState('schedule'); // 'calendar' | 'board'
   const [screen, setScreen] = useState('app'); // 'app' | 'insights'
   const followUpTimersRef = useRef({});
   const dragPosRef = useRef({ y: 0 });
@@ -68,6 +68,24 @@ export default function Dashboard() {
   // Initial sync on mount
   useEffect(() => {
     handleSync();
+  }, []);
+
+  // Request browser notification permission on entering the app
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const requestNotifications = useCallback(async () => {
+    if (!('Notification' in window)) { toast.error('Notifications not supported in this browser'); return; }
+    const perm = await Notification.requestPermission();
+    if (perm === 'granted') {
+      toast.success('Notifications enabled');
+      try { new Notification('Calkanban', { body: 'Browser notifications are on.' }); } catch {}
+    } else {
+      toast.message('Notifications not enabled');
+    }
   }, []);
 
   const handleSync = async () => {
@@ -784,6 +802,13 @@ export default function Dashboard() {
                 <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
                 {syncing ? 'Syncing…' : 'Sync'}
               </Button>
+              <button
+                onClick={requestNotifications}
+                title="Enable browser notifications"
+                className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-input hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                <Bell className="w-3.5 h-3.5" />
+              </button>
               <ThemeToggle />
             </div>
           </div>
