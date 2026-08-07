@@ -19,6 +19,7 @@ import FollowUpModal from '@/components/FollowUpModal';
 import CelebrationOverlay from '@/components/CelebrationOverlay';
 import CalendarFilter from '@/components/calendar/CalendarFilter';
 import ThemeToggle from '@/components/ThemeToggle';
+import InsightsPanel from '@/components/insights/InsightsPanel';
 
 const HOUR_HEIGHT = 60;
 function slotFromDropY(droppableId, clientY, durationMin) {
@@ -49,6 +50,7 @@ export default function Dashboard() {
   const [addState, setAddState] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [view, setView] = useState('calendar'); // 'calendar' | 'board'
+  const [screen, setScreen] = useState('app'); // 'app' | 'insights'
   const followUpTimersRef = useRef({});
   const dragPosRef = useRef({ y: 0 });
 
@@ -479,6 +481,10 @@ export default function Dashboard() {
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
+      {screen === 'insights' && (
+        <InsightsPanel events={events} emails={emails} onBack={() => setScreen('app')} />
+      )}
+      {screen !== 'insights' && (
       <PanelGroup direction="horizontal" className="h-screen overflow-hidden bg-background">
         <Panel defaultSize={22} minSize={14} maxSize={45} className="min-w-0">
         <GmailSidebar
@@ -496,14 +502,18 @@ export default function Dashboard() {
         <div className="h-full flex flex-col min-w-0">
           {/* Toggle bar */}
           <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card">
-            <div className="flex items-center gap-1.5 pr-3 mr-1 border-r border-border">
+            <button
+              onClick={() => setScreen('insights')}
+              title="View performance insights"
+              className="flex items-center gap-1.5 pr-3 mr-1 border-r border-border hover:opacity-80 transition-opacity"
+            >
               <img
                 src="https://media.base44.com/images/public/6a0383b6225245c6dd116653/1946bb15d_ChatGPTImageAug6202612_27_39PM.png"
                 alt="Calkanban"
                 className="w-6 h-6 rounded-md object-cover"
               />
               <span className="text-sm font-semibold text-foreground tracking-tight">Calkanban</span>
-            </div>
+            </button>
             <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
               <button
                 onClick={() => setView('calendar')}
@@ -588,6 +598,7 @@ export default function Dashboard() {
         </div>
         </Panel>
       </PanelGroup>
+      )}
 
       <FollowUpModal
         event={followUpEvent}
