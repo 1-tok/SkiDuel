@@ -1,0 +1,10 @@
+{
+  "type": "linkedin",
+  "scopes": [
+    "r_basicprofile",
+    "w_member_social",
+    "openid",
+    "profile",
+    "email"
+  ]
+}
