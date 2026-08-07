@@ -1,6 +1,7 @@
 import React from 'react';
 import { Droppable } from '@hello-pangea/dnd';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, format, parseISO, isSameDay } from 'date-fns';
+import { getEventColor, getCalendarColor } from '@/lib/scheduling';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -46,11 +47,14 @@ export default function MonthView({ currentDate, events, setCurrentDate, setView
                     )}
                   </button>
                   <div className="space-y-1 min-h-0 overflow-hidden">
-                    {dayEvents.slice(0, 3).map(e => (
-                      <div key={e.id} className="text-[10px] truncate px-1 py-0.5 rounded bg-primary/10 text-primary" title={e.title}>
-                        {e.start_time && format(parseISO(e.start_time), 'HH:mm')} {e.title}
-                      </div>
-                    ))}
+                    {dayEvents.slice(0, 3).map(e => {
+                      const c = getEventColor(getCalendarColor(e));
+                      return (
+                        <div key={e.id} className={`text-[10px] truncate px-1 py-0.5 rounded ${c.bg} ${c.text}`} title={e.title}>
+                          {e.start_time && format(parseISO(e.start_time), 'HH:mm')} {e.title}
+                        </div>
+                      );
+                    })}
                     {dayEvents.length > 3 && (
                       <div className="text-[9px] text-muted-foreground px-1">+{dayEvents.length - 3} more</div>
                     )}

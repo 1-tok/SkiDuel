@@ -81,3 +81,22 @@ export function getEventColor(color) {
   };
   return colors[color] || colors.blue;
 }
+
+const CALENDAR_PALETTE = ['blue', 'green', 'purple', 'orange', 'pink'];
+function hashStr(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+  }
+  return Math.abs(h);
+}
+
+// Deterministic color per source calendar so each calendar (own or shared) is
+// visually distinct. Manual/gmail items fall back to their stored color.
+export function getCalendarColor(event) {
+  if (event && event.source === 'google_calendar' && event.calendar_name) {
+    const key = `${event.source_account || ''}|${event.calendar_name}`;
+    return CALENDAR_PALETTE[hashStr(key) % CALENDAR_PALETTE.length];
+  }
+  return (event && event.color) || 'blue';
+}

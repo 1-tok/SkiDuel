@@ -1,10 +1,10 @@
 import React from 'react';
 import { Mail, GripVertical, Users } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
-import { getEventColor } from '@/lib/scheduling';
+import { getEventColor, getCalendarColor } from '@/lib/scheduling';
 
 export default function CalendarEvent({ event, isDragging, style, isGhost }) {
-  const colors = getEventColor(event.color);
+  const colors = getEventColor(getCalendarColor(event));
   const isCompleted = event.status === 'completed';
   const isCancelled = event.status === 'cancelled';
   const isShared = !!event.is_shared_calendar;
