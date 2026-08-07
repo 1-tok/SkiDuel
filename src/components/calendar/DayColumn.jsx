@@ -2,6 +2,7 @@ import React, { useRef, useState, useCallback } from 'react';
 import { Droppable } from '@hello-pangea/dnd';
 import { format, parseISO, isSameDay, isToday, addMinutes } from 'date-fns';
 import CalendarEvent from './CalendarEvent';
+import EventModal from '../kanban/EventModal';
 
 const HOUR_HEIGHT = 60; // px per hour
 
@@ -10,6 +11,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
   const [draggingEvent, setDraggingEvent] = useState(null); // { event, offsetMinutes, ghostTop }
   const dragState = useRef(null);
   const [overY, setOverY] = useState(null);
+  const [modalEvent, setModalEvent] = useState(null);
 
   const dayEvents = events.filter(e => isSameDay(parseISO(e.start_time), date));
   const today = isToday(date);
@@ -88,14 +90,14 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
     const clickedMinutes = getMinutesFromY(e.clientY);
     const offsetMinutes = clickedMinutes - startMinutes;
 
-    dragState.current = {
-      event,
-      offsetMinutes,
-    };
-
-    setDraggingEvent({ event, ghostTop: (startMinutes / 60) * HOUR_HEIGHT });
+    dragState.current = { event, offsetMinutes, moved: false };
 
     const onMouseMove = (moveE) => {
+      if (!dragState.current) return;
+      if (!dragState.current.moved) {
+        dragState.current.moved = true;
+        setDraggingEvent({ event, ghostTop: (startMinutes / 60) * HOUR_HEIGHT });
+      }
       const currentMinutes = getMinutesFromY(moveE.clientY);
       const newStartMinutes = snapMinutes(currentMinutes - dragState.current.offsetMinutes);
       const clampedStart = Math.max(0, Math.min(23 * 60, newStartMinutes));
@@ -107,6 +109,14 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
       document.removeEventListener('mouseup', onMouseUp);
 
       if (!dragState.current) return;
+
+      // No movement = click → open the detail modal instead of rescheduling
+      if (!dragState.current.moved) {
+        const ev = dragState.current.event;
+        dragState.current = null;
+        setModalEvent(ev);
+        return;
+      }
 
       const currentMinutes = getMinutesFromY(upE.clientY);
       const newStartMinutes = snapMinutes(currentMinutes - dragState.current.offsetMinutes);
@@ -216,6 +226,8 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
           </div>
         )}
       </Droppable>
+
+      <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} />
     </div>
   );
 }

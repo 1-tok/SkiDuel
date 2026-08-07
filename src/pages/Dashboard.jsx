@@ -3,7 +3,7 @@ import { base44 } from '@/api/base44Client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
-import { format, parseISO, isSameDay, isBefore } from 'date-fns';
+import { format, parseISO, isSameDay, isBefore, startOfWeek, addDays } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
 import { RefreshCw, CalendarDays, List } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import CalendarPanel from '@/components/calendar/CalendarPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
 import ScheduleView from '@/components/schedule/ScheduleView';
 import FollowUpModal from '@/components/FollowUpModal';
+import CelebrationOverlay from '@/components/CelebrationOverlay';
 import CalendarFilter from '@/components/calendar/CalendarFilter';
 import ThemeToggle from '@/components/ThemeToggle';
 
@@ -37,6 +38,7 @@ function slotFromDropY(droppableId, clientY, durationMin) {
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [followUpEvent, setFollowUpEvent] = useState(null);
+  const [celebration, setCelebration] = useState({ open: false, stats: null });
   const [syncing, setSyncing] = useState(false);
   const [view, setView] = useState('calendar'); // 'calendar' | 'board'
   const followUpTimersRef = useRef({});
@@ -167,9 +169,21 @@ export default function Dashboard() {
     updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
   }, [events, settings, createEvent, updateEmail]);
 
+  const triggerCelebration = useCallback((completedEventId) => {
+    const updated = events.map(e => e.id === completedEventId ? { ...e, status: 'completed', kanban_column: 'done' } : e);
+    const today = new Date();
+    const sw = startOfWeek(today);
+    const ew = addDays(sw, 7);
+    const doneToday = updated.filter(e => e.status === 'completed' && e.start_time && isSameDay(parseISO(e.start_time), today)).length;
+    const doneThisWeek = updated.filter(e => e.status === 'completed' && e.start_time && parseISO(e.start_time) >= sw && parseISO(e.start_time) < ew).length;
+    const leftToday = updated.filter(e => e.status === 'scheduled' && e.start_time && isSameDay(parseISO(e.start_time), today)).length;
+    setCelebration({ open: true, stats: { doneToday, doneThisWeek, leftToday } });
+  }, [events]);
+
   const handleFollowUpAction = useCallback((event, action, followUpText) => {
     if (action === 'completed') {
       updateEvent.mutate({ id: event.id, data: { status: 'completed', kanban_column: 'done' } });
+      triggerCelebration(event.id);
     } else if (action === 'cancelled') {
       updateEvent.mutate({ id: event.id, data: { status: 'cancelled', kanban_column: 'past' } });
     } else if (action === 'needs_followup') {
@@ -191,7 +205,7 @@ export default function Dashboard() {
         });
       }
     }
-  }, [events, settings, updateEvent, createEvent]);
+  }, [events, settings, updateEvent, createEvent, triggerCelebration]);
 
   // Push a scheduled item to Google Calendar, then create the local event with the
   // gcal id already set so the webhook sync updates it instead of duplicating it.
@@ -307,6 +321,9 @@ export default function Dashboard() {
           }
         }
         await updateEvent.mutateAsync({ id: event.id, data: updates });
+        if (targetColumn === 'done') {
+          triggerCelebration(event.id);
+        }
         // Moving to Doing schedules it into the next available slot and syncs the Google Calendar entry
         if (targetColumn === 'doing' && slot) {
           try {
@@ -358,7 +375,7 @@ export default function Dashboard() {
         }
       }
     }
-  }, [emails, events, settings, createEvent, updateEvent, updateEmail, createAndPushEvent, queryClient]);
+  }, [emails, events, settings, createEvent, updateEvent, updateEmail, createAndPushEvent, queryClient, triggerCelebration]);
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
@@ -461,6 +478,12 @@ export default function Dashboard() {
         open={!!followUpEvent}
         onClose={() => setFollowUpEvent(null)}
         onAction={handleFollowUpAction}
+      />
+
+      <CelebrationOverlay
+        open={celebration.open}
+        stats={celebration.stats}
+        onClose={() => setCelebration(c => ({ ...c, open: false }))}
       />
     </DragDropContext>
   );
