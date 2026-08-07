@@ -58,11 +58,32 @@ export default function Dashboard() {
   const [screen, setScreen] = useState('app'); // 'app' | 'insights'
   const followUpTimersRef = useRef({});
   const dragPosRef = useRef({ y: 0 });
+  const suppressClickRef = useRef(false);
 
   useEffect(() => {
     const onMove = (e) => { dragPosRef.current.y = e.clientY; };
     window.addEventListener('mousemove', onMove);
     return () => window.removeEventListener('mousemove', onMove);
+  }, []);
+
+  // After a drag-and-drop, a click event fires on the drop target. Calendar/schedule/kanban
+  // droppables treat a click as "add item" — suppress that post-drop click so dropping an
+  // item back to its original slot doesn't open the Add modal.
+  useEffect(() => {
+    const onClickCapture = (e) => {
+      if (suppressClickRef.current) {
+        suppressClickRef.current = false;
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+    const onPointerDown = () => { suppressClickRef.current = false; };
+    window.addEventListener('click', onClickCapture, true);
+    window.addEventListener('pointerdown', onPointerDown, true);
+    return () => {
+      window.removeEventListener('click', onClickCapture, true);
+      window.removeEventListener('pointerdown', onPointerDown, true);
+    };
   }, []);
 
   // Initial sync on mount
@@ -474,7 +495,11 @@ export default function Dashboard() {
 
   const handleDragEnd = useCallback(async (result) => {
     const { source, destination, draggableId } = result;
+    // Suppress the click that fires on the droppable after a drag (would open "Add item").
+    suppressClickRef.current = true;
     if (!destination) return;
+    // Dropped back onto its exact original slot — nothing to do.
+    if (source.droppableId === destination.droppableId && source.index === destination.index) return;
     const today = new Date();
 
     const emailEventData = (email, slot, column, status, duration) => ({
