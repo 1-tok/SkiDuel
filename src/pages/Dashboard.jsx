@@ -556,7 +556,8 @@ export default function Dashboard() {
                 events={[...visibleEvents, ...ghosts]}
                 settings={settings}
                 onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
-                onAddAt={(date, minutes) => {
+                onAddAt={(dateInput, minutes) => {
+                  const date = typeof dateInput === 'string' ? dateInput : format(dateInput, 'yyyy-MM-dd');
                   const d = new Date(date + 'T00:00:00');
                   d.setMinutes(minutes);
                   setAddState({ prefill: { date, time: format(d, 'HH:mm') } });
