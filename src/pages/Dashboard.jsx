@@ -52,6 +52,8 @@ export default function Dashboard() {
   const [addState, setAddState] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [searchEvent, setSearchEvent] = useState(null);
+  const [selectedEmailIds, setSelectedEmailIds] = useState(new Set());
+  const [selectedEventIds, setSelectedEventIds] = useState(new Set());
   const [view, setView] = useState('calendar'); // 'calendar' | 'board'
   const [screen, setScreen] = useState('app'); // 'app' | 'insights'
   const followUpTimersRef = useRef({});
@@ -343,6 +345,94 @@ export default function Dashboard() {
     setAddState(null);
   }, [createAndPushEvent]);
 
+  // --- Selection & bulk actions ---
+  const toggleEmailSelect = useCallback((id) => {
+    setSelectedEmailIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }, []);
+  const setEmailSelection = useCallback((ids, checked) => {
+    setSelectedEmailIds(prev => { const n = new Set(prev); if (checked) ids.forEach(id => n.add(id)); else ids.forEach(id => n.delete(id)); return n; });
+  }, []);
+  const toggleEventSelect = useCallback((id) => {
+    setSelectedEventIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }, []);
+  const setEventSelection = useCallback((ids, checked) => {
+    setSelectedEventIds(prev => { const n = new Set(prev); if (checked) ids.forEach(id => n.add(id)); else ids.forEach(id => n.delete(id)); return n; });
+  }, []);
+
+  const bulkArchiveEmails = useCallback(async () => {
+    const ids = [...selectedEmailIds];
+    if (!ids.length) return;
+    await Promise.all(ids.map(id => base44.entities.Email.update(id, { is_actioned: true, is_read: true })));
+    queryClient.invalidateQueries({ queryKey: ['emails'] });
+    setSelectedEmailIds(new Set());
+    toast.success(`Moved ${ids.length} to Past`);
+  }, [selectedEmailIds, queryClient]);
+
+  const bulkDoneEmails = useCallback(async () => {
+    const ids = [...selectedEmailIds];
+    if (!ids.length) return;
+    await Promise.all(ids.map(id => base44.entities.Email.update(id, { is_actioned: true, is_read: true })));
+    queryClient.invalidateQueries({ queryKey: ['emails'] });
+    setSelectedEmailIds(new Set());
+    toast.success(`Marked ${ids.length} done`);
+  }, [selectedEmailIds, queryClient]);
+
+  const bulkScheduleEmails = useCallback(async () => {
+    const targets = emails.filter(e => selectedEmailIds.has(e.id));
+    if (!targets.length) return;
+    const booked = [...events];
+    let count = 0;
+    for (const email of targets) {
+      const slot = findNextAvailableSlot(booked, new Date(), settings);
+      if (!slot) break;
+      booked.push({ start_time: slot.start_time, end_time: slot.end_time });
+      await createAndPushEvent({
+        title: email.subject,
+        description: `From: ${email.sender}\n${email.preview}`,
+        start_time: slot.start_time, end_time: slot.end_time, date: slot.date,
+        duration_minutes: settings.default_event_duration ?? 10,
+        source: 'gmail', source_email_id: email.id,
+        kanban_column: isSameDay(parseISO(slot.start_time), new Date()) ? 'doing' : 'todo',
+        color: 'blue', status: 'scheduled',
+      });
+      await base44.entities.Email.update(email.id, { is_actioned: true });
+      count++;
+    }
+    queryClient.invalidateQueries({ queryKey: ['emails'] });
+    setSelectedEmailIds(new Set());
+    toast.success(`Scheduled ${count} emails`);
+  }, [selectedEmailIds, emails, events, settings, createAndPushEvent, queryClient]);
+
+  const bulkDeleteEvents = useCallback(async () => {
+    const ids = [...selectedEventIds];
+    if (!ids.length) return;
+    await Promise.all(ids.map(id => base44.entities.CalendarEvent.update(id, { kanban_column: 'past', status: 'cancelled' })));
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    setSelectedEventIds(new Set());
+    toast.success(`Moved ${ids.length} to Past`);
+  }, [selectedEventIds, queryClient]);
+
+  const bulkCompleteEvents = useCallback(async () => {
+    const ids = [...selectedEventIds];
+    if (!ids.length) return;
+    await Promise.all(ids.map(id => base44.entities.CalendarEvent.update(id, { status: 'completed', kanban_column: 'done' })));
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    setSelectedEventIds(new Set());
+    triggerCelebration(ids[ids.length - 1]);
+    toast.success(`Completed ${ids.length} items`);
+  }, [selectedEventIds, queryClient, triggerCelebration]);
+
+  const bulkMoveEvents = useCallback(async (column) => {
+    const ids = [...selectedEventIds];
+    if (!ids.length) return;
+    const status = column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled';
+    await Promise.all(ids.map(id => base44.entities.CalendarEvent.update(id, { kanban_column: column, status })));
+    queryClient.invalidateQueries({ queryKey: ['events'] });
+    setSelectedEventIds(new Set());
+    if (column === 'done') triggerCelebration(ids[ids.length - 1]);
+    toast.success(`Moved ${ids.length} items`);
+  }, [selectedEventIds, queryClient, triggerCelebration]);
+
   const handleDragEnd = useCallback(async (result) => {
     const { source, destination, draggableId } = result;
     if (!destination) return;
@@ -362,10 +452,88 @@ export default function Dashboard() {
       status,
     });
 
+    const resolveEmails = (email) => (selectedEmailIds.has(email.id) && selectedEmailIds.size > 1)
+      ? emails.filter(e => selectedEmailIds.has(e.id)) : [email];
+    const resolveEvents = (event) => (selectedEventIds.has(event.id) && selectedEventIds.size > 1)
+      ? events.filter(e => selectedEventIds.has(e.id) && !e.is_shared_calendar) : [event];
+
+    const massEmailDrop = async (targets, dest) => {
+      const booked = [...events];
+      if (dest.droppableId.startsWith('calendar-')) {
+        const targetDate = dest.droppableId.replace('calendar-', '');
+        const duration = settings.default_event_duration ?? 10;
+        for (const em of targets) {
+          const slot = findNextAvailableSlot(booked, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
+          if (!slot) break;
+          const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
+          booked.push({ start_time: slot.start_time, end_time: slot.end_time });
+          await createAndPushEvent(emailEventData(em, slot, column, 'scheduled', duration));
+          updateEmail.mutate({ id: em.id, data: { is_actioned: true } });
+        }
+      } else if (dest.droppableId.startsWith('kanban-')) {
+        const column = dest.droppableId.replace('kanban-', '');
+        const isTodayCol = column === 'doing';
+        const duration = isTodayCol ? 15 : (settings.default_event_duration ?? 10);
+        const status = column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled';
+        for (const em of targets) {
+          const slot = findNextAvailableSlot(booked, today, { ...settings, default_event_duration: duration }, isTodayCol);
+          if (!slot) break;
+          booked.push({ start_time: slot.start_time, end_time: slot.end_time });
+          await createAndPushEvent(emailEventData(em, slot, column, status, duration));
+          updateEmail.mutate({ id: em.id, data: { is_actioned: true } });
+        }
+      } else if (dest.droppableId === 'schedule') {
+        for (const em of targets) {
+          const slot = findNextAvailableSlot(booked, today, settings);
+          if (!slot) break;
+          const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
+          booked.push({ start_time: slot.start_time, end_time: slot.end_time });
+          await createAndPushEvent(emailEventData(em, slot, column, 'scheduled'));
+          updateEmail.mutate({ id: em.id, data: { is_actioned: true } });
+        }
+      }
+    };
+
+    const massEventMove = async (targets, dest) => {
+      const booked = [...events];
+      if (dest.droppableId.startsWith('kanban-')) {
+        const targetColumn = dest.droppableId.replace('kanban-', '');
+        for (const ev of targets) {
+          const updates = { kanban_column: targetColumn };
+          if (targetColumn === 'done') updates.status = 'completed';
+          else if (targetColumn === 'past') updates.status = 'cancelled';
+          else if (targetColumn === 'doing') {
+            updates.status = 'scheduled';
+            const slot = findNextAvailableSlot(booked, today, settings, true);
+            if (slot) { updates.start_time = slot.start_time; updates.end_time = slot.end_time; updates.date = slot.date; booked.push({ start_time: slot.start_time, end_time: slot.end_time }); }
+          } else if (targetColumn === 'todo') {
+            updates.status = 'scheduled';
+            const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+            const slot = findNextAvailableSlot(booked, tomorrow, settings);
+            if (slot) { updates.start_time = slot.start_time; updates.end_time = slot.end_time; updates.date = slot.date; booked.push({ start_time: slot.start_time, end_time: slot.end_time }); }
+          }
+          await updateEvent.mutateAsync({ id: ev.id, data: updates });
+        }
+        if (targetColumn === 'done') triggerCelebration(targets[targets.length - 1]?.id);
+      } else if (dest.droppableId.startsWith('calendar-')) {
+        const targetDate = dest.droppableId.replace('calendar-', '');
+        const isTargetToday = isSameDay(new Date(targetDate), today);
+        for (const ev of targets) {
+          const slot = findNextAvailableSlot(booked, new Date(targetDate), settings, true);
+          if (!slot) break;
+          booked.push({ start_time: slot.start_time, end_time: slot.end_time });
+          updateEvent.mutate({ id: ev.id, data: { start_time: slot.start_time, end_time: slot.end_time, date: slot.date, kanban_column: isTargetToday ? 'doing' : 'todo', status: 'scheduled' } });
+        }
+      }
+    };
+
     if (draggableId.startsWith('email-')) {
       const emailId = draggableId.replace('email-', '');
       const email = emails.find(e => e.id === emailId);
       if (!email) return;
+
+      const emailTargets = resolveEmails(email);
+      if (emailTargets.length > 1) { await massEmailDrop(emailTargets, destination); setSelectedEmailIds(new Set()); return; }
 
       if (destination.droppableId.startsWith('calendar-')) {
         const targetDate = destination.droppableId.replace('calendar-', '');
@@ -428,6 +596,9 @@ export default function Dashboard() {
       const eventId = draggableId.replace('event-', '');
       const event = events.find(e => e.id === eventId);
       if (!event) return;
+
+      const eventTargets = resolveEvents(event);
+      if (eventTargets.length > 1) { await massEventMove(eventTargets, destination); setSelectedEventIds(new Set()); return; }
 
       if (destination.droppableId.startsWith('kanban-')) {
         const targetColumn = destination.droppableId.replace('kanban-', '');
@@ -511,7 +682,7 @@ export default function Dashboard() {
         }
       }
     }
-  }, [emails, events, settings, createEvent, updateEvent, updateEmail, createAndPushEvent, queryClient, triggerCelebration]);
+  }, [emails, events, settings, createEvent, updateEvent, updateEmail, createAndPushEvent, queryClient, triggerCelebration, selectedEmailIds, selectedEventIds]);
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
@@ -529,6 +700,12 @@ export default function Dashboard() {
           onDelete={handleDeleteEmail}
           mailAccounts={mailAccounts}
           calendarAccounts={calendarAccounts}
+          selectedIds={selectedEmailIds}
+          onToggleSelect={toggleEmailSelect}
+          onSelectAll={setEmailSelection}
+          onBulkDelete={bulkArchiveEmails}
+          onBulkSchedule={bulkScheduleEmails}
+          onBulkDone={bulkDoneEmails}
         />
         </Panel>
         <PanelResizeHandle className="w-1.5 bg-border hover:bg-primary/30 transition-colors cursor-col-resize data-[resize-handle-state=drag]:bg-primary/50" />
@@ -629,7 +806,17 @@ export default function Dashboard() {
             ) : view === 'schedule' ? (
               <ScheduleView events={[...activeEvents, ...ghosts]} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} />
             ) : (
-              <KanbanPanel events={visibleEvents} onAdd={(column) => setAddState({ prefill: { column } })} onDelete={handleDeleteEvent} />
+              <KanbanPanel
+                events={visibleEvents}
+                onAdd={(column) => setAddState({ prefill: { column } })}
+                onDelete={handleDeleteEvent}
+                selectedIds={selectedEventIds}
+                onToggleSelect={toggleEventSelect}
+                onSelectAll={setEventSelection}
+                onBulkDelete={bulkDeleteEvents}
+                onBulkComplete={bulkCompleteEvents}
+                onBulkMove={bulkMoveEvents}
+              />
             )}
           </div>
         </div>

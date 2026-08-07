@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Mail, Clock, GripVertical, Trash2 } from 'lucide-react';
+import { Mail, Clock, GripVertical, Trash2, Check } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getEventColor } from '@/lib/scheduling';
 import EventModal from './EventModal';
 
-export default function KanbanCard({ event, isDragging, onDelete }) {
+export default function KanbanCard({ event, isDragging, onDelete, selected, onToggleSelect }) {
   const [modalOpen, setModalOpen] = useState(false);
   const colors = getEventColor(event.color);
   const isCompleted = event.status === 'completed';
@@ -18,6 +18,7 @@ export default function KanbanCard({ event, isDragging, onDelete }) {
         className={`group relative bg-card rounded-lg border px-3 py-2.5 transition-all duration-150 cursor-pointer
           ${isDragging ? 'shadow-xl scale-[1.02] ring-2 ring-primary/20' : 'hover:shadow-md hover:-translate-y-0.5 border-border'}
           ${isCancelled ? 'opacity-50' : ''}
+          ${selected ? 'ring-2 ring-primary/40 border-primary/40' : ''}
         `}
       >
         {onDelete && (
@@ -30,6 +31,16 @@ export default function KanbanCard({ event, isDragging, onDelete }) {
           </button>
         )}
         <div className="flex items-start gap-2">
+          <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => { e.stopPropagation(); onToggleSelect?.(event.id); }}
+            title="Select"
+            className={`w-4 h-4 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
+              selected ? 'bg-primary border-primary' : 'border-border bg-card hover:border-primary/40'
+            }`}
+          >
+            {selected && <Check className="w-3 h-3 text-primary-foreground" />}
+          </button>
           <GripVertical className="w-3 h-3 text-muted-foreground/30 mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1">

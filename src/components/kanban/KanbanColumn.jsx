@@ -10,8 +10,9 @@ const columnConfig = {
   past: { label: 'Past', color: 'bg-slate-400', emptyText: 'No past items' },
 };
 
-export default function KanbanColumn({ columnId, events, onAdd, onDelete }) {
+export default function KanbanColumn({ columnId, events, onAdd, onDelete, selectedIds, onToggleSelect }) {
   const config = columnConfig[columnId];
+  const selected = selectedIds || new Set();
 
   return (
     <div className="flex flex-col w-72 min-w-[288px] bg-card rounded-xl border border-border shadow-sm">
@@ -54,7 +55,13 @@ export default function KanbanColumn({ columnId, events, onAdd, onDelete }) {
                     {...provided.dragHandleProps}
                     data-kanban-card
                   >
-                    <KanbanCard event={event} isDragging={snapshot.isDragging} onDelete={onDelete} />
+                    <KanbanCard
+                      event={event}
+                      isDragging={snapshot.isDragging}
+                      onDelete={onDelete}
+                      selected={selected.has(event.id)}
+                      onToggleSelect={onToggleSelect}
+                    />
                   </div>
                 )}
               </Draggable>

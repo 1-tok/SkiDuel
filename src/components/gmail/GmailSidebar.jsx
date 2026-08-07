@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
-import { Mail, Eye, EyeOff, Inbox, Settings } from 'lucide-react';
+import { Mail, Inbox, Settings, Trash2, Calendar, Check, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import EmailCard from './EmailCard';
 import SyncIntegrationsModal from './SyncIntegrationsModal';
 import { Draggable, Droppable } from '@hello-pangea/dnd';
 
-export default function GmailSidebar({ emails, onMarkRead, onSchedule, onOpen, onDelete, mailAccounts = [], calendarAccounts = [] }) {
+export default function GmailSidebar({
+  emails, onMarkRead, onSchedule, onOpen, onDelete, mailAccounts = [], calendarAccounts = [],
+  selectedIds, onToggleSelect, onSelectAll, onBulkDelete, onBulkSchedule, onBulkDone,
+}) {
   const [showRead, setShowRead] = useState(false);
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
 
-  const visibleEmails = showRead 
-    ? emails 
-    : emails.filter(e => !e.is_read && !e.is_actioned);
+  const visibleEmails = showRead ? emails : emails.filter(e => !e.is_read && !e.is_actioned);
+  const selected = selectedIds || new Set();
+  const allSelected = visibleEmails.length > 0 && visibleEmails.every(e => selected.has(e.id));
+  const someSelected = selected.size > 0;
+
+  const toggleAll = (checked) => onSelectAll?.(visibleEmails.map(e => e.id), checked);
 
   return (
     <div className="bg-card flex flex-col h-full min-h-0">
@@ -37,16 +43,46 @@ export default function GmailSidebar({ emails, onMarkRead, onSchedule, onOpen, o
             </button>
           </div>
         </div>
-        <div className="flex items-center justify-between">
-          <span className="text-[11px] text-muted-foreground">Show read emails</span>
-          <Switch checked={showRead} onCheckedChange={setShowRead} className="scale-75" />
+        <div className="flex items-center justify-between gap-2">
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={(e) => toggleAll(e.target.checked)}
+              className="w-3.5 h-3.5 accent-primary rounded"
+            />
+            <span className="text-[11px] text-muted-foreground">Select all</span>
+          </label>
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-muted-foreground">Show read</span>
+            <Switch checked={showRead} onCheckedChange={setShowRead} className="scale-75" />
+          </div>
         </div>
       </div>
+
+      {/* Bulk action bar */}
+      {someSelected && (
+        <div className="px-3 py-2 border-b border-border bg-primary/5 flex items-center gap-1.5 flex-wrap">
+          <span className="text-[11px] font-medium text-primary mr-1">{selected.size} selected</span>
+          <button onClick={onBulkSchedule} title="Create calendar entries" className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-md text-primary hover:bg-primary/10 transition-colors">
+            <Calendar className="w-3 h-3" /> Schedule
+          </button>
+          <button onClick={onBulkDone} title="Mark done" className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-md text-emerald-600 hover:bg-emerald-50 transition-colors">
+            <Check className="w-3 h-3" /> Done
+          </button>
+          <button onClick={onBulkDelete} title="Move to Past" className="flex items-center gap-1 text-[11px] px-2 py-1 rounded-md text-destructive hover:bg-destructive/10 transition-colors">
+            <Trash2 className="w-3 h-3" /> Past
+          </button>
+          <button onClick={() => onSelectAll?.([], false)} title="Clear selection" className="ml-auto p-1 rounded-md text-muted-foreground hover:bg-muted transition-colors">
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
 
       {/* Email List */}
       <Droppable droppableId="gmail-sidebar" type="TASK">
         {(provided) => (
-          <div 
+          <div
             ref={provided.innerRef}
             {...provided.droppableProps}
             className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain p-3 space-y-2"
@@ -75,6 +111,8 @@ export default function GmailSidebar({ emails, onMarkRead, onSchedule, onOpen, o
                         onOpen={onOpen}
                         onDelete={onDelete}
                         isDragging={snapshot.isDragging}
+                        selected={selected.has(email.id)}
+                        onToggleSelect={onToggleSelect}
                       />
                     </div>
                   )}

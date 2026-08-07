@@ -2,7 +2,7 @@ import React from 'react';
 import { Check, Calendar, Mail, GripVertical, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 
-export default function EmailCard({ email, onMarkRead, onSchedule, onOpen, onDelete, isDragging }) {
+export default function EmailCard({ email, onMarkRead, onSchedule, onOpen, onDelete, isDragging, selected, onToggleSelect }) {
   const timeStr = email.timestamp ? format(parseISO(email.timestamp), 'HH:mm') : '';
 
   return (
@@ -10,9 +10,19 @@ export default function EmailCard({ email, onMarkRead, onSchedule, onOpen, onDel
       onClick={() => !isDragging && onOpen?.(email)}
       className={`group relative bg-card rounded-lg border border-border p-3 transition-all duration-200 cursor-grab active:cursor-grabbing ${
         isDragging ? 'shadow-lg scale-105 opacity-90 ring-2 ring-primary/30' : 'hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5'
-      }`}
+      } ${selected ? 'ring-2 ring-primary/40 border-primary/40' : ''}`}
     >
       <div className="flex items-start gap-2">
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); onToggleSelect?.(email.id); }}
+          title="Select"
+          className={`w-4 h-4 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors ${
+            selected ? 'bg-primary border-primary' : 'border-border bg-card hover:border-primary/40'
+          }`}
+        >
+          {selected && <Check className="w-3 h-3 text-primary-foreground" />}
+        </button>
         <GripVertical className="w-3.5 h-3.5 text-muted-foreground/40 mt-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center justify-between gap-2 mb-1">
