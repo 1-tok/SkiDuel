@@ -358,13 +358,13 @@ export default function Dashboard() {
     if (!destination) return;
     const today = new Date();
 
-    const emailEventData = (email, slot, column, status) => ({
+    const emailEventData = (email, slot, column, status, duration) => ({
       title: email.subject,
       description: `From: ${email.sender}\n${email.preview}`,
       start_time: slot.start_time,
       end_time: slot.end_time,
       date: slot.date,
-      duration_minutes: settings.default_event_duration ?? 10,
+      duration_minutes: duration ?? settings.default_event_duration ?? 10,
       source: 'gmail',
       source_email_id: email.id,
       kanban_column: column,
@@ -410,10 +410,12 @@ export default function Dashboard() {
       } else if (destination.droppableId.startsWith('kanban-')) {
         const column = destination.droppableId.replace('kanban-', '');
         const isTodayCol = column === 'doing';
-        const slot = findNextAvailableSlot(events, today, settings, isTodayCol);
+        // Emails added to "Doing" book the next available 15-minute slot today.
+        const duration = isTodayCol ? 15 : (settings.default_event_duration ?? 10);
+        const slot = findNextAvailableSlot(events, today, { ...settings, default_event_duration: duration }, isTodayCol);
         if (!slot) return;
         const status = column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled';
-        await createAndPushEvent(emailEventData(email, slot, column, status));
+        await createAndPushEvent(emailEventData(email, slot, column, status, duration));
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       } else if (destination.droppableId === 'schedule') {
         const slot = findNextAvailableSlot(events, today, settings);
