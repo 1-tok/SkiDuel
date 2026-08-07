@@ -5,7 +5,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { format, parseISO, isSameDay, isBefore, startOfWeek, addDays } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
-import { RefreshCw, CalendarDays, List, Plus, Bell } from 'lucide-react';
+import { RefreshCw, CalendarDays, List, Plus, Bell, Linkedin } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -22,6 +22,7 @@ import ThemeToggle from '@/components/ThemeToggle';
 import InsightsPanel from '@/components/insights/InsightsPanel';
 import SearchBar from '@/components/SearchBar';
 import EventModal from '@/components/kanban/EventModal';
+import LinkedInComposer from '@/components/LinkedInComposer';
 
 const HOUR_HEIGHT = 60;
 function slotFromDropY(droppableId, clientY, durationMin) {
@@ -50,6 +51,7 @@ export default function Dashboard() {
   const [openEmail, setOpenEmail] = useState(null);
   const [openEmailEventId, setOpenEmailEventId] = useState(null);
   const [addState, setAddState] = useState(null);
+  const [linkedinOpen, setLinkedinOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [searchEvent, setSearchEvent] = useState(null);
   const [selectedEmailIds, setSelectedEmailIds] = useState(new Set());
@@ -840,6 +842,16 @@ export default function Dashboard() {
                 <Plus className="w-3.5 h-3.5" />
                 Add
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setLinkedinOpen(true)}
+                className="h-7 gap-1.5 text-xs"
+                title="Post an update to LinkedIn"
+              >
+                <Linkedin className="w-3.5 h-3.5 text-[#0A66C2]" />
+                Post
+              </Button>
               <CalendarFilter visibility={visibility} events={events} />
               <Button
                 variant="outline"
@@ -921,6 +933,8 @@ export default function Dashboard() {
         onClose={() => setAddState(null)}
         onCreate={handleCreateItem}
       />
+
+      <LinkedInComposer open={linkedinOpen} onClose={() => setLinkedinOpen(false)} />
 
       <CelebrationOverlay
         open={celebration.open}
