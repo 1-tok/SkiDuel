@@ -39,6 +39,7 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [followUpEvent, setFollowUpEvent] = useState(null);
   const [celebration, setCelebration] = useState({ open: false, stats: null });
+  const [ghosts, setGhosts] = useState([]);
   const [syncing, setSyncing] = useState(false);
   const [view, setView] = useState('calendar'); // 'calendar' | 'board'
   const followUpTimersRef = useRef({});
@@ -269,7 +270,15 @@ export default function Dashboard() {
         const slot = slotFromDropY(destination.droppableId, dragPosRef.current.y, duration)
           || findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
         if (!slot) return;
-        await createAndPushEvent(emailEventData(email, slot, isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo', 'scheduled'));
+        const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
+        const data = emailEventData(email, slot, column, 'scheduled');
+        const ghostId = `ghost-${Date.now()}`;
+        setGhosts(prev => [...prev, { id: ghostId, ...data, isGhost: true }]);
+        try {
+          await createAndPushEvent(data);
+        } finally {
+          setGhosts(prev => prev.filter(g => g.id !== ghostId));
+        }
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       } else if (destination.droppableId.startsWith('kanban-')) {
         const column = destination.droppableId.replace('kanban-', '');
@@ -282,7 +291,15 @@ export default function Dashboard() {
       } else if (destination.droppableId === 'schedule') {
         const slot = findNextAvailableSlot(events, today, settings);
         if (!slot) return;
-        await createAndPushEvent(emailEventData(email, slot, isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo', 'scheduled'));
+        const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
+        const data = emailEventData(email, slot, column, 'scheduled');
+        const ghostId = `ghost-${Date.now()}`;
+        setGhosts(prev => [...prev, { id: ghostId, ...data, isGhost: true }]);
+        try {
+          await createAndPushEvent(data);
+        } finally {
+          setGhosts(prev => prev.filter(g => g.id !== ghostId));
+        }
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       }
       return;
@@ -459,12 +476,12 @@ export default function Dashboard() {
           <div className="flex-1 min-h-0 overflow-hidden">
             {view === 'calendar' ? (
               <CalendarPanel
-                events={visibleEvents}
+                events={[...visibleEvents, ...ghosts]}
                 settings={settings}
                 onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
               />
             ) : view === 'schedule' ? (
-              <ScheduleView events={visibleEvents} />
+              <ScheduleView events={[...visibleEvents, ...ghosts]} />
             ) : (
               <KanbanPanel events={visibleEvents} />
             )}

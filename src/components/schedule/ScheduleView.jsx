@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { parseISO, format, isToday, isTomorrow } from 'date-fns';
 import { Mail, Share2, CalendarClock } from 'lucide-react';
 import { Droppable } from '@hello-pangea/dnd';
+import EventModal from '../kanban/EventModal';
 
 const statusStyles = {
   scheduled: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
@@ -11,6 +12,7 @@ const statusStyles = {
 };
 
 export default function ScheduleView({ events }) {
+  const [modalEvent, setModalEvent] = useState(null);
   const now = new Date();
   const upcoming = events
     .filter(e => e.start_time)
@@ -62,7 +64,15 @@ export default function ScheduleView({ events }) {
                 </div>
                 <div className="space-y-2">
                   {g.items.map(e => (
-                    <div key={e.id} className="flex gap-3 bg-card rounded-lg border border-border p-3 hover:shadow-sm transition-shadow">
+                    <div
+                      key={e.id}
+                      onClick={() => !e.isGhost && setModalEvent(e)}
+                      className={`flex gap-3 bg-card rounded-lg border p-3 transition-shadow ${
+                        e.isGhost
+                          ? 'border-dashed border-primary/50 bg-primary/5 animate-pulse cursor-default'
+                          : 'border-border hover:shadow-sm cursor-pointer'
+                      }`}
+                    >
                       <div className="flex flex-col items-center justify-center min-w-[52px] py-0.5">
                         <span className="text-sm font-semibold text-foreground tabular-nums">
                           {format(parseISO(e.start_time), 'HH:mm')}
@@ -72,31 +82,39 @@ export default function ScheduleView({ events }) {
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate mb-0.5">{e.title}</p>
-                        {e.description && (
-                          <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{e.description}</p>
+                        <p className={`text-sm font-medium truncate mb-0.5 ${e.isGhost ? 'text-primary/70' : 'text-foreground'}`}>
+                          {e.title}
+                        </p>
+                        {e.isGhost ? (
+                          <p className="text-[11px] text-primary/60">Creating calendar event…</p>
+                        ) : (
+                          <>
+                            {e.description && (
+                              <p className="text-xs text-muted-foreground line-clamp-2 mb-1.5">{e.description}</p>
+                            )}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${statusStyles[e.status] || statusStyles.scheduled}`}>
+                                {e.status}
+                              </span>
+                              {e.source === 'gmail' && (
+                                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                  <Mail className="w-2.5 h-2.5" />gmail
+                                </span>
+                              )}
+                              {e.is_shared_calendar && (
+                                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                  <Share2 className="w-2.5 h-2.5" />shared
+                                </span>
+                              )}
+                              {e.calendar_name && e.calendar_name !== 'primary' && (
+                                <span className="text-[10px] text-muted-foreground">{e.calendar_name}</span>
+                              )}
+                              {e.source_account && (
+                                <span className="text-[10px] text-muted-foreground/70">via {e.source_account}</span>
+                              )}
+                            </div>
+                          </>
                         )}
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${statusStyles[e.status] || statusStyles.scheduled}`}>
-                            {e.status}
-                          </span>
-                          {e.source === 'gmail' && (
-                            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                              <Mail className="w-2.5 h-2.5" />gmail
-                            </span>
-                          )}
-                          {e.is_shared_calendar && (
-                            <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-                              <Share2 className="w-2.5 h-2.5" />shared
-                            </span>
-                          )}
-                          {e.calendar_name && e.calendar_name !== 'primary' && (
-                            <span className="text-[10px] text-muted-foreground">{e.calendar_name}</span>
-                          )}
-                          {e.source_account && (
-                            <span className="text-[10px] text-muted-foreground/70">via {e.source_account}</span>
-                          )}
-                        </div>
                       </div>
                     </div>
                   ))}
@@ -105,6 +123,8 @@ export default function ScheduleView({ events }) {
             ))}
             {provided.placeholder}
           </div>
+
+          <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} />
         </div>
       )}
     </Droppable>

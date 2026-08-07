@@ -192,8 +192,25 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
 
             {/* Events */}
             {eventLayouts.map(({ event, col, totalCols }) => {
-              const isDraggingThis = draggingEvent?.event?.id === event.id;
               const style = getEventStyle(event, col, totalCols);
+
+              if (event.isGhost) {
+                return (
+                  <div
+                    key={event.id}
+                    style={{ ...style, zIndex: 10 }}
+                    className="absolute transition-none"
+                  >
+                    <CalendarEvent
+                      event={event}
+                      isGhost
+                      style={{ position: 'relative', left: 0, right: 0, width: '100%', height: '100%' }}
+                    />
+                  </div>
+                );
+              }
+
+              const isDraggingThis = draggingEvent?.event?.id === event.id;
               const top = isDraggingThis ? `${draggingEvent.ghostTop}px` : style.top;
 
               return (
