@@ -257,24 +257,6 @@ export default function Dashboard() {
     if (fate === 'done') triggerCelebration(eventId);
   }, [events, settings, updateEvent, triggerCelebration]);
 
-  const handleCreateItem = useCallback(async (data) => {
-    const today = new Date();
-    const start = new Date(data.start_time);
-    const column = isSameDay(start, today) ? 'doing' : 'todo';
-    await createAndPushEvent({
-      title: data.title,
-      start_time: data.start_time,
-      end_time: data.end_time,
-      date: data.date,
-      duration_minutes: data.duration_minutes,
-      source: 'manual',
-      kanban_column: column,
-      color: 'blue',
-      status: 'scheduled',
-    });
-    setAddState(null);
-  }, [createAndPushEvent]);
-
   // Push a scheduled item to Google Calendar, then create the local event with the
   // gcal id already set so the webhook sync updates it instead of duplicating it.
   const createAndPushEvent = useCallback(async (data) => {
@@ -306,6 +288,24 @@ export default function Dashboard() {
     }
     return created;
   }, [createEvent, queryClient]);
+
+  const handleCreateItem = useCallback(async (data) => {
+    const today = new Date();
+    const start = new Date(data.start_time);
+    const column = isSameDay(start, today) ? 'doing' : 'todo';
+    await createAndPushEvent({
+      title: data.title,
+      start_time: data.start_time,
+      end_time: data.end_time,
+      date: data.date,
+      duration_minutes: data.duration_minutes,
+      source: 'manual',
+      kanban_column: column,
+      color: 'blue',
+      status: 'scheduled',
+    });
+    setAddState(null);
+  }, [createAndPushEvent]);
 
   const handleDragEnd = useCallback(async (result) => {
     const { source, destination, draggableId } = result;
