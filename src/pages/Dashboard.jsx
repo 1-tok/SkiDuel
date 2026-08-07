@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 import GmailSidebar from '@/components/gmail/GmailSidebar';
+import EmailModal from '@/components/gmail/EmailModal';
 import CalendarPanel from '@/components/calendar/CalendarPanel';
 import KanbanPanel from '@/components/kanban/KanbanPanel';
 import ScheduleView from '@/components/schedule/ScheduleView';
@@ -40,6 +41,8 @@ export default function Dashboard() {
   const [followUpEvent, setFollowUpEvent] = useState(null);
   const [celebration, setCelebration] = useState({ open: false, stats: null });
   const [ghosts, setGhosts] = useState([]);
+  const [openEmail, setOpenEmail] = useState(null);
+  const [openEmailEventId, setOpenEmailEventId] = useState(null);
   const [syncing, setSyncing] = useState(false);
   const [view, setView] = useState('calendar'); // 'calendar' | 'board'
   const followUpTimersRef = useRef({});
@@ -207,6 +210,50 @@ export default function Dashboard() {
       }
     }
   }, [events, settings, updateEvent, createEvent, triggerCelebration]);
+
+  const handleOpenEmail = useCallback(async (email) => {
+    setOpenEmail(email);
+    setOpenEmailEventId(null);
+    try {
+      const existing = await base44.entities.CalendarEvent.filter({ source_email_id: email.id });
+      if (existing && existing.length > 0) {
+        setOpenEmailEventId(existing[0].id);
+        return;
+      }
+      const slot = findNextAvailableSlot(events, new Date(), settings, true);
+      if (!slot) return;
+      const created = await createEvent.mutateAsync({
+        title: email.subject,
+        description: `From: ${email.sender}\n${email.preview}`,
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        date: slot.date,
+        duration_minutes: settings.default_event_duration ?? 10,
+        source: 'gmail',
+        source_email_id: email.id,
+        kanban_column: 'doing',
+        color: 'blue',
+        status: 'scheduled',
+      });
+      setOpenEmailEventId(created.id);
+    } catch {}
+  }, [events, settings, createEvent]);
+
+  const handleSetFate = useCallback(async (eventId, fate) => {
+    if (!eventId) return;
+    const updates = { kanban_column: fate };
+    if (fate === 'done') updates.status = 'completed';
+    else if (fate === 'past') updates.status = 'cancelled';
+    else updates.status = 'scheduled';
+    if (fate === 'todo') {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const slot = findNextAvailableSlot(events, tomorrow, settings);
+      if (slot) { updates.start_time = slot.start_time; updates.end_time = slot.end_time; updates.date = slot.date; }
+    }
+    await updateEvent.mutateAsync({ id: eventId, data: updates });
+    if (fate === 'done') triggerCelebration(eventId);
+  }, [events, settings, updateEvent, triggerCelebration]);
 
   // Push a scheduled item to Google Calendar, then create the local event with the
   // gcal id already set so the webhook sync updates it instead of duplicating it.
@@ -402,6 +449,7 @@ export default function Dashboard() {
           emails={emails}
           onMarkRead={handleMarkRead}
           onSchedule={handleScheduleEmail}
+          onOpen={handleOpenEmail}
           mailAccounts={mailAccounts}
           calendarAccounts={calendarAccounts}
         />
@@ -495,6 +543,14 @@ export default function Dashboard() {
         open={!!followUpEvent}
         onClose={() => setFollowUpEvent(null)}
         onAction={handleFollowUpAction}
+      />
+
+      <EmailModal
+        email={openEmail}
+        eventId={openEmailEventId}
+        open={!!openEmail}
+        onClose={() => { setOpenEmail(null); setOpenEmailEventId(null); }}
+        onSetFate={handleSetFate}
       />
 
       <CelebrationOverlay
