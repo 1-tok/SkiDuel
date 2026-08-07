@@ -38,8 +38,8 @@ export default function InsightsPanel({ events, emails, onBack }) {
     });
 
     events.forEach((e) => {
-      if (e.status === 'completed' && e.start_time) {
-        const k = key(parseISO(e.start_time));
+      if (e.status === 'completed' && e.updated_date) {
+        const k = key(parseISO(e.updated_date));
         if (k in doneCount) doneCount[k] += 1;
       }
       if (e.created_date) {
@@ -73,11 +73,11 @@ export default function InsightsPanel({ events, emails, onBack }) {
       (e) => e.kanban_column === 'todo' && e.status !== 'cancelled' && e.status !== 'completed'
     ).length;
     const doneToday = events.filter(
-      (e) => e.status === 'completed' && e.start_time && isSameDay(parseISO(e.start_time), today)
+      (e) => e.status === 'completed' && e.updated_date && isSameDay(parseISO(e.updated_date), today)
     ).length;
     const weekStart = subDays(startOfDay(today), 7);
     const doneWeek = events.filter(
-      (e) => e.status === 'completed' && e.start_time && isAfter(parseISO(e.start_time), weekStart)
+      (e) => e.status === 'completed' && e.updated_date && isAfter(parseISO(e.updated_date), weekStart)
     ).length;
     const activeEmailDays = days.filter((d) => emailCount[key(d)] > 0).length || 1;
     const totalEmails = Object.values(emailCount).reduce((a, b) => a + b, 0);

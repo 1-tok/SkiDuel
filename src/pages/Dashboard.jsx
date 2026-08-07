@@ -274,13 +274,16 @@ export default function Dashboard() {
   }, [events, settings, createEvent, updateEmail]);
 
   const triggerCelebration = useCallback((completedEventId) => {
-    const updated = events.map(e => e.id === completedEventId ? { ...e, status: 'completed', kanban_column: 'done' } : e);
     const today = new Date();
     const sw = startOfWeek(today);
     const ew = addDays(sw, 7);
-    const doneToday = updated.filter(e => e.status === 'completed' && e.start_time && isSameDay(parseISO(e.start_time), today)).length;
-    const doneThisWeek = updated.filter(e => e.status === 'completed' && e.start_time && parseISO(e.start_time) >= sw && parseISO(e.start_time) < ew).length;
-    const leftToday = updated.filter(e => e.status === 'scheduled' && e.start_time && isSameDay(parseISO(e.start_time), today)).length;
+    const inWeek = (d) => { const x = parseISO(d); return x >= sw && x < ew; };
+    const completedToday = events.filter(e => e.status === 'completed' && e.updated_date && isSameDay(parseISO(e.updated_date), today));
+    const completedWeek = events.filter(e => e.status === 'completed' && e.updated_date && inWeek(e.updated_date));
+    // The just-completed item isn't refetched yet, so count it explicitly.
+    const doneToday = completedToday.length + (completedToday.some(e => e.id === completedEventId) ? 0 : 1);
+    const doneThisWeek = completedWeek.length + (completedWeek.some(e => e.id === completedEventId) ? 0 : 1);
+    const leftToday = events.filter(e => e.status === 'scheduled' && e.start_time && isSameDay(parseISO(e.start_time), today)).length;
     setCelebration({ open: true, stats: { doneToday, doneThisWeek, leftToday } });
   }, [events]);
 
