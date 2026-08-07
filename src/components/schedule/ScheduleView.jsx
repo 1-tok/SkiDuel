@@ -11,7 +11,7 @@ const statusStyles = {
   needs_followup: 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300',
 };
 
-export default function ScheduleView({ events, onAdd, onDelete }) {
+export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
   const [modalEvent, setModalEvent] = useState(null);
   const now = new Date();
   const upcoming = events
@@ -138,7 +138,7 @@ export default function ScheduleView({ events, onAdd, onDelete }) {
             {provided.placeholder}
           </div>
 
-          <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} onDelete={onDelete} />
+          <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} onDelete={onDelete} onUpdate={onUpdate} />
         </div>
       )}
     </Droppable>

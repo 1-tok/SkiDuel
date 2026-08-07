@@ -4,7 +4,7 @@ import { Check, Trash2, X } from 'lucide-react';
 import KanbanColumn from './KanbanColumn';
 
 export default function KanbanPanel({
-  events, onAdd, onDelete,
+  events, onAdd, onDelete, onUpdate,
   selectedIds, onToggleSelect, onSelectAll, onBulkDelete, onBulkComplete, onBulkMove,
 }) {
   const now = new Date();
@@ -79,6 +79,7 @@ export default function KanbanPanel({
             events={columns[col]}
             onAdd={onAdd}
             onDelete={onDelete}
+            onUpdate={onUpdate}
             selectedIds={selected}
             onToggleSelect={onToggleSelect}
           />

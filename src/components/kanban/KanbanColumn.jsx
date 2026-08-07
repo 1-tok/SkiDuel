@@ -10,7 +10,7 @@ const columnConfig = {
   past: { label: 'Past', color: 'bg-slate-400', emptyText: 'No past items' },
 };
 
-export default function KanbanColumn({ columnId, events, onAdd, onDelete, selectedIds, onToggleSelect }) {
+export default function KanbanColumn({ columnId, events, onAdd, onDelete, onUpdate, selectedIds, onToggleSelect }) {
   const config = columnConfig[columnId];
   const selected = selectedIds || new Set();
 
@@ -59,6 +59,7 @@ export default function KanbanColumn({ columnId, events, onAdd, onDelete, select
                       event={event}
                       isDragging={snapshot.isDragging}
                       onDelete={onDelete}
+                      onUpdate={onUpdate}
                       selected={selected.has(event.id)}
                       onToggleSelect={onToggleSelect}
                     />

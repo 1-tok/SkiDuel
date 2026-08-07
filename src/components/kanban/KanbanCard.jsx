@@ -4,7 +4,7 @@ import { format, parseISO } from 'date-fns';
 import { getEventColor } from '@/lib/scheduling';
 import EventModal from './EventModal';
 
-export default function KanbanCard({ event, isDragging, onDelete, selected, onToggleSelect }) {
+export default function KanbanCard({ event, isDragging, onDelete, onUpdate, selected, onToggleSelect }) {
   const [modalOpen, setModalOpen] = useState(false);
   const colors = getEventColor(event.color);
   const isCompleted = event.status === 'completed';
@@ -67,7 +67,7 @@ export default function KanbanCard({ event, isDragging, onDelete, selected, onTo
         </div>
       </div>
 
-      <EventModal event={event} open={modalOpen} onClose={() => setModalOpen(false)} onDelete={onDelete} />
+      <EventModal event={event} open={modalOpen} onClose={() => setModalOpen(false)} onDelete={onDelete} onUpdate={onUpdate} />
     </>
   );
 }

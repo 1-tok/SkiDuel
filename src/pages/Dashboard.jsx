@@ -211,6 +211,27 @@ export default function Dashboard() {
     }
   }, [queryClient]);
 
+  const handleUpdateEvent = useCallback(async (event, updates) => {
+    try {
+      await updateEvent.mutateAsync({ id: event.id, data: updates });
+      if (event.gcal_event_id && (updates.title || updates.description || updates.start_time || updates.end_time)) {
+        try {
+          await base44.functions.invoke('updateGCalEvent', {
+            gcal_event_id: event.gcal_event_id,
+            title: updates.title ?? event.title,
+            description: updates.description ?? event.description ?? '',
+            start_time: updates.start_time ?? event.start_time,
+            end_time: updates.end_time ?? event.end_time,
+          });
+        } catch (e) {
+          toast.error('Google Calendar sync failed: ' + (e?.message || e));
+        }
+      }
+    } catch (e) {
+      toast.error('Update failed: ' + (e?.message || e));
+    }
+  }, [updateEvent]);
+
   const handleScheduleEmail = useCallback((email) => {
     const today = new Date();
     const slot = findNextAvailableSlot(events, today, settings);
@@ -821,6 +842,7 @@ export default function Dashboard() {
                 settings={settings}
                 onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
                 onDeleteEvent={handleDeleteEvent}
+                onEditEvent={handleUpdateEvent}
                 onAddAt={(dateInput, minutes) => {
                   const date = typeof dateInput === 'string' ? dateInput : format(dateInput, 'yyyy-MM-dd');
                   const d = new Date(date + 'T00:00:00');
@@ -829,12 +851,13 @@ export default function Dashboard() {
                 }}
               />
             ) : view === 'schedule' ? (
-              <ScheduleView events={[...activeEvents, ...ghosts]} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} />
+              <ScheduleView events={[...activeEvents, ...ghosts]} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />
             ) : (
               <KanbanPanel
                 events={visibleEvents}
                 onAdd={(column) => setAddState({ prefill: { column } })}
                 onDelete={handleDeleteEvent}
+                onUpdate={handleUpdateEvent}
                 selectedIds={selectedEventIds}
                 onToggleSelect={toggleEventSelect}
                 onSelectAll={setEventSelection}
@@ -877,7 +900,7 @@ export default function Dashboard() {
         onClose={() => setCelebration(c => ({ ...c, open: false }))}
       />
 
-      <EventModal event={searchEvent} open={!!searchEvent} onClose={() => setSearchEvent(null)} onDelete={handleDeleteEvent} />
+      <EventModal event={searchEvent} open={!!searchEvent} onClose={() => setSearchEvent(null)} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />
     </DragDropContext>
   );
 }

@@ -7,7 +7,7 @@ import { getEventColor, getCalendarColor } from '@/lib/scheduling';
 
 const HOUR_HEIGHT = 60; // px per hour
 
-export default function DayColumn({ date, events, workStart = 9, workEnd = 18, onUpdateEvent, previewDuration = 30, minWidth = 0, onAddAt, onDeleteEvent }) {
+export default function DayColumn({ date, events, workStart = 9, workEnd = 18, onUpdateEvent, previewDuration = 30, minWidth = 0, onAddAt, onDeleteEvent, onEditEvent }) {
   const containerRef = useRef(null);
   const [draggingEvent, setDraggingEvent] = useState(null);
   const dragState = useRef(null);
@@ -275,7 +275,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
         </div>
       )}
 
-      <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} onDelete={onDeleteEvent} />
+      <EventModal event={modalEvent} open={!!modalEvent} onClose={() => setModalEvent(null)} onDelete={onDeleteEvent} onUpdate={onEditEvent} />
     </div>
   );
 }
