@@ -20,6 +20,8 @@ import CelebrationOverlay from '@/components/CelebrationOverlay';
 import CalendarFilter from '@/components/calendar/CalendarFilter';
 import ThemeToggle from '@/components/ThemeToggle';
 import InsightsPanel from '@/components/insights/InsightsPanel';
+import SearchBar from '@/components/SearchBar';
+import EventModal from '@/components/kanban/EventModal';
 
 const HOUR_HEIGHT = 60;
 function slotFromDropY(droppableId, clientY, durationMin) {
@@ -49,6 +51,7 @@ export default function Dashboard() {
   const [openEmailEventId, setOpenEmailEventId] = useState(null);
   const [addState, setAddState] = useState(null);
   const [syncing, setSyncing] = useState(false);
+  const [searchEvent, setSearchEvent] = useState(null);
   const [view, setView] = useState('calendar'); // 'calendar' | 'board'
   const [screen, setScreen] = useState('app'); // 'app' | 'insights'
   const followUpTimersRef = useRef({});
@@ -583,6 +586,7 @@ export default function Dashboard() {
             </div>
 
             <div className="ml-auto flex items-center gap-2">
+              <SearchBar emails={emails} events={events} onOpenEvent={setSearchEvent} onOpenEmail={handleOpenEmail} />
               <Button
                 variant="default"
                 size="sm"
@@ -660,6 +664,8 @@ export default function Dashboard() {
         stats={celebration.stats}
         onClose={() => setCelebration(c => ({ ...c, open: false }))}
       />
+
+      <EventModal event={searchEvent} open={!!searchEvent} onClose={() => setSearchEvent(null)} onDelete={handleDeleteEvent} />
     </DragDropContext>
   );
 }
