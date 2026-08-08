@@ -5,7 +5,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { format, parseISO, isSameDay, isBefore, startOfWeek, addDays } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
-import { RefreshCw, CalendarDays, List, Plus, Bell, Linkedin, MessageSquare } from 'lucide-react';
+import { RefreshCw, CalendarDays, List, Plus, Bell, Linkedin, MessageSquare, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -24,6 +24,7 @@ import SearchBar from '@/components/SearchBar';
 import EventModal from '@/components/kanban/EventModal';
 import LinkedInComposer from '@/components/LinkedInComposer';
 import SlackSettings from '@/components/slack/SlackSettings';
+import WeeklyTrendChart from '@/components/insights/WeeklyTrendChart';
 
 const HOUR_HEIGHT = 60;
 function slotFromDropY(droppableId, clientY, durationMin) {
@@ -54,6 +55,7 @@ export default function Dashboard() {
   const [addState, setAddState] = useState(null);
   const [linkedinOpen, setLinkedinOpen] = useState(false);
   const [slackOpen, setSlackOpen] = useState(false);
+  const [showTrend, setShowTrend] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [searchEvent, setSearchEvent] = useState(null);
   const [selectedEmailIds, setSelectedEmailIds] = useState(new Set());
@@ -848,6 +850,16 @@ export default function Dashboard() {
                 Add
               </Button>
               <Button
+                variant={showTrend ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setShowTrend((v) => !v)}
+                className="h-7 gap-1.5 text-xs"
+                title="Toggle weekly productivity trend"
+              >
+                <BarChart3 className="w-3.5 h-3.5" />
+                Trends
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setLinkedinOpen(true)}
@@ -888,6 +900,8 @@ export default function Dashboard() {
               <ThemeToggle />
             </div>
           </div>
+
+          {showTrend && <WeeklyTrendChart events={events} />}
 
           {/* Panel */}
           <div className="flex-1 min-h-0 overflow-hidden">
