@@ -10,6 +10,7 @@ export default function AddItemModal({ prefill, open, onClose, onCreate }) {
   const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [time, setTime] = useState(format(new Date(), 'HH:mm'));
   const [duration, setDuration] = useState(10);
+  const [squeeze, setSqueeze] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -18,6 +19,7 @@ export default function AddItemModal({ prefill, open, onClose, onCreate }) {
     setDate(prefill?.date || format(new Date(), 'yyyy-MM-dd'));
     setTime(prefill?.time || format(new Date(), 'HH:mm'));
     setDuration(prefill?.duration ?? 10);
+    setSqueeze(prefill?.squeeze !== false);
   }, [open, prefill]);
 
   const handleSubmit = async (e) => {
@@ -34,6 +36,7 @@ export default function AddItemModal({ prefill, open, onClose, onCreate }) {
         end_time: end.toISOString(),
         date,
         duration_minutes: dur,
+        squeeze,
       });
     } finally {
       setSubmitting(false);
@@ -65,6 +68,10 @@ export default function AddItemModal({ prefill, open, onClose, onCreate }) {
             <Label htmlFor="add-dur">Duration (minutes)</Label>
             <Input id="add-dur" type="number" min={5} step={5} value={duration} onChange={e => setDuration(e.target.value)} />
           </div>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" checked={squeeze} onChange={e => setSqueeze(e.target.checked)} className="w-4 h-4 accent-primary rounded" />
+            <span className="text-xs text-muted-foreground">Squeeze flexible items to fit</span>
+          </label>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose} disabled={submitting}>Cancel</Button>
             <Button type="submit" disabled={submitting}>{submitting ? 'Adding…' : 'Add'}</Button>

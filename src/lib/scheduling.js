@@ -100,3 +100,70 @@ export function getCalendarColor(event) {
   }
   return (event && event.color) || 'blue';
 }
+
+// A "flexible" item is a to-do the user created in-app (manual or from an email).
+// Fixed meetings synced from Google Calendar are NOT flexible and stay put.
+export function isFlexibleEvent(event) {
+  if (!event) return false;
+  return event.flexible === true || event.source === 'manual' || event.source === 'gmail';
+}
+
+function evStart(e) { return parseISO(e.start_time); }
+function evEnd(e) { return e.end_time ? parseISO(e.end_time) : addMinutes(evStart(e), e.duration_minutes || 30); }
+function evDur(e) {
+  if (e.duration_minutes) return e.duration_minutes;
+  return Math.max(5, Math.round((evEnd(e) - evStart(e)) / 60000));
+}
+
+// Squeezes a new item of `durationMin` into `targetStart`, shifting later flexible
+// items to make room. Fixed (non-flexible) events are immovable barriers — the new
+// item and any shifted flexible items are nudged past them instead of overwriting.
+// Returns { newStart, newEnd, date, updates: [{id,start_time,end_time,date}], nudged }.
+export function computeSqueeze(allEvents, targetStart, durationMin) {
+  const day = targetStart;
+  const dayEvents = allEvents.filter(e => e.start_time && isSameDay(parseISO(e.start_time), day));
+  const fixed = dayEvents
+    .filter(e => !isFlexibleEvent(e))
+    .map(e => ({ s: evStart(e), e: evEnd(e) }))
+    .sort((a, b) => a.s - b.s);
+
+  const pushPastFixed = (start, dur) => {
+    let s = new Date(start);
+    for (let g = 0; g < 50; g++) {
+      const hit = fixed.find(f => f.s < addMinutes(s, dur) && f.e > s);
+      if (!hit) break;
+      s = new Date(hit.e);
+    }
+    return s;
+  };
+
+  // If a fixed meeting occupies the desired slot, nudge the new item to start after it.
+  let newStart = new Date(targetStart);
+  let nudged = false;
+  for (let g = 0; g < 50; g++) {
+    const blocker = fixed.find(f => f.s < addMinutes(newStart, durationMin) && f.e > newStart);
+    if (!blocker) break;
+    newStart = new Date(blocker.e);
+    nudged = true;
+  }
+  const newEnd = addMinutes(newStart, durationMin);
+
+  const flexible = dayEvents
+    .filter(e => isFlexibleEvent(e))
+    .map(e => ({ s: evStart(e), e: evEnd(e), dur: evDur(e), id: e.id }))
+    .sort((a, b) => a.s - b.s);
+
+  const updates = [];
+  let occupiedEnd = newEnd;
+  for (const it of flexible) {
+    if (it.e <= newStart) continue;     // entirely before the new item — leave it
+    if (it.s >= occupiedEnd) break;      // gap reached — no further cascade
+    // Collides with the new item (or a shifted predecessor) → shift later, around fixed meetings.
+    const slotStart = pushPastFixed(occupiedEnd, it.dur);
+    const slotEnd = addMinutes(slotStart, it.dur);
+    updates.push({ id: it.id, start_time: slotStart.toISOString(), end_time: slotEnd.toISOString(), date: format(slotStart, 'yyyy-MM-dd') });
+    occupiedEnd = slotEnd;
+  }
+
+  return { newStart: newStart.toISOString(), newEnd: newEnd.toISOString(), date: format(newStart, 'yyyy-MM-dd'), updates, nudged };
+}

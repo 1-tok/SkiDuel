@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { format, parseISO, isSameDay, isBefore, startOfWeek, addDays } from 'date-fns';
-import { findNextAvailableSlot } from '@/lib/scheduling';
+import { findNextAvailableSlot, computeSqueeze } from '@/lib/scheduling';
 import { RefreshCw, CalendarDays, List, Plus, Bell, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -275,6 +275,7 @@ export default function Dashboard() {
       kanban_column: isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo',
       color: 'blue',
       status: 'scheduled',
+      flexible: true,
     });
     updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
   }, [events, settings, createEvent, updateEmail]);
@@ -315,6 +316,7 @@ export default function Dashboard() {
           color: 'purple',
           status: 'scheduled',
           followup_note: followUpText,
+          flexible: true,
         });
       }
     }
@@ -343,6 +345,7 @@ export default function Dashboard() {
         kanban_column: 'doing',
         color: 'blue',
         status: 'scheduled',
+        flexible: true,
       });
       setOpenEmailEventId(created.id);
     } catch {}
@@ -398,21 +401,54 @@ export default function Dashboard() {
 
   const handleCreateItem = useCallback(async (data) => {
     const today = new Date();
-    const start = new Date(data.start_time);
+    let startIso = data.start_time;
+    let endIso = data.end_time;
+    let dateVal = data.date;
+
+    if (data.squeeze) {
+      const squeeze = computeSqueeze(events, new Date(data.start_time), data.duration_minutes);
+      startIso = squeeze.newStart;
+      endIso = squeeze.newEnd;
+      dateVal = squeeze.date;
+      if (squeeze.updates.length > 0) {
+        await base44.entities.CalendarEvent.bulkUpdate(
+          squeeze.updates.map(u => ({ id: u.id, start_time: u.start_time, end_time: u.end_time, date: u.date }))
+        );
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        for (const u of squeeze.updates) {
+          const ev = events.find(e => e.id === u.id);
+          if (ev?.gcal_event_id) {
+            try {
+              await base44.functions.invoke('updateGCalEvent', {
+                gcal_event_id: ev.gcal_event_id,
+                title: ev.title,
+                description: ev.description || '',
+                start_time: u.start_time,
+                end_time: u.end_time,
+              });
+            } catch {}
+          }
+        }
+      }
+      if (squeeze.nudged) toast.message('Placed after a fixed meeting in that slot');
+    }
+
+    const start = new Date(startIso);
     const column = isSameDay(start, today) ? 'doing' : 'todo';
     await createAndPushEvent({
       title: data.title,
-      start_time: data.start_time,
-      end_time: data.end_time,
-      date: data.date,
+      start_time: startIso,
+      end_time: endIso,
+      date: dateVal,
       duration_minutes: data.duration_minutes,
       source: 'manual',
+      flexible: true,
       kanban_column: column,
       color: 'blue',
       status: 'scheduled',
     });
     setAddState(null);
-  }, [createAndPushEvent]);
+  }, [events, createAndPushEvent, queryClient]);
 
   // --- Selection & bulk actions ---
   const toggleEmailSelect = useCallback((id) => {
@@ -523,6 +559,7 @@ export default function Dashboard() {
       kanban_column: column,
       color: 'blue',
       status,
+      flexible: true,
     });
 
     const resolveEmails = (email) => (selectedEmailIds.has(email.id) && selectedEmailIds.size > 1)
