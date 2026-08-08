@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { format, parseISO, isSameDay, isBefore, startOfWeek, addDays } from 'date-fns';
-import { findNextAvailableSlot, computeSqueeze } from '@/lib/scheduling';
+import { findNextAvailableSlot, computeSqueeze, isFlexibleEvent } from '@/lib/scheduling';
 import { RefreshCw, CalendarDays, List, Plus, Bell, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -399,6 +399,36 @@ export default function Dashboard() {
     return created;
   }, [createEvent, queryClient]);
 
+  // Squeezes a new item at `desiredStart` for `duration` minutes: shifts later flexible
+  // items to make room (and syncs them to Google Calendar), nudging past fixed meetings.
+  // Returns the actual { start_time, end_time, date } the new item should occupy.
+  const applySqueeze = useCallback(async (desiredStart, duration, excludeId) => {
+    const pool = excludeId ? events.filter(e => e.id !== excludeId) : events;
+    const squeeze = computeSqueeze(pool, desiredStart, duration);
+    if (squeeze.updates.length > 0) {
+      await base44.entities.CalendarEvent.bulkUpdate(
+        squeeze.updates.map(u => ({ id: u.id, start_time: u.start_time, end_time: u.end_time, date: u.date }))
+      );
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      for (const u of squeeze.updates) {
+        const ev = events.find(e => e.id === u.id);
+        if (ev?.gcal_event_id) {
+          try {
+            await base44.functions.invoke('updateGCalEvent', {
+              gcal_event_id: ev.gcal_event_id,
+              title: ev.title,
+              description: ev.description || '',
+              start_time: u.start_time,
+              end_time: u.end_time,
+            });
+          } catch {}
+        }
+      }
+    }
+    if (squeeze.nudged) toast.message('Placed after a fixed meeting in that slot');
+    return { start_time: squeeze.newStart, end_time: squeeze.newEnd, date: squeeze.date };
+  }, [events, queryClient]);
+
   const handleCreateItem = useCallback(async (data) => {
     const today = new Date();
     let startIso = data.start_time;
@@ -406,31 +436,10 @@ export default function Dashboard() {
     let dateVal = data.date;
 
     if (data.squeeze) {
-      const squeeze = computeSqueeze(events, new Date(data.start_time), data.duration_minutes);
-      startIso = squeeze.newStart;
-      endIso = squeeze.newEnd;
-      dateVal = squeeze.date;
-      if (squeeze.updates.length > 0) {
-        await base44.entities.CalendarEvent.bulkUpdate(
-          squeeze.updates.map(u => ({ id: u.id, start_time: u.start_time, end_time: u.end_time, date: u.date }))
-        );
-        queryClient.invalidateQueries({ queryKey: ['events'] });
-        for (const u of squeeze.updates) {
-          const ev = events.find(e => e.id === u.id);
-          if (ev?.gcal_event_id) {
-            try {
-              await base44.functions.invoke('updateGCalEvent', {
-                gcal_event_id: ev.gcal_event_id,
-                title: ev.title,
-                description: ev.description || '',
-                start_time: u.start_time,
-                end_time: u.end_time,
-              });
-            } catch {}
-          }
-        }
-      }
-      if (squeeze.nudged) toast.message('Placed after a fixed meeting in that slot');
+      const placed = await applySqueeze(new Date(data.start_time), data.duration_minutes);
+      startIso = placed.start_time;
+      endIso = placed.end_time;
+      dateVal = placed.date;
     }
 
     const start = new Date(startIso);
@@ -448,7 +457,7 @@ export default function Dashboard() {
       status: 'scheduled',
     });
     setAddState(null);
-  }, [events, createAndPushEvent, queryClient]);
+  }, [applySqueeze, createAndPushEvent]);
 
   // --- Selection & bulk actions ---
   const toggleEmailSelect = useCallback((id) => {
@@ -648,25 +657,31 @@ export default function Dashboard() {
       if (destination.droppableId.startsWith('calendar-')) {
         const targetDate = destination.droppableId.replace('calendar-', '');
         const duration = settings.default_event_duration ?? 10;
-        const slot = slotFromDropY(destination.droppableId, dragPosRef.current.y, duration)
-          || findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
-        if (!slot) return;
-        // Dropped directly onto an existing own event → attach the email to it.
-        const slotStart = parseISO(slot.start_time);
-        const dayOwn = events.filter(e => !e.is_shared_calendar && e.start_time && isSameDay(parseISO(e.start_time), new Date(targetDate)));
-        const hit = dayOwn.find(e => {
-          const es = parseISO(e.start_time);
-          const ee = e.end_time ? parseISO(e.end_time) : es;
-          return slotStart >= es && slotStart < ee;
-        });
-        if (hit) {
-          await updateEvent.mutateAsync({ id: hit.id, data: { source_email_id: email.id, source: 'gmail' } });
-          updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
-          toast.success(`Attached to "${hit.title}"`);
-          return;
+        const dropSlot = slotFromDropY(destination.droppableId, dragPosRef.current.y, duration);
+        const desiredStart = dropSlot ? parseISO(dropSlot.start_time) : null;
+        // Dropped directly onto a fixed meeting → attach the email to it (can't squeeze a meeting).
+        if (desiredStart) {
+          const dayOwn = events.filter(e => e.start_time && isSameDay(parseISO(e.start_time), new Date(targetDate)));
+          const hitFixed = dayOwn.find(e => {
+            if (isFlexibleEvent(e)) return false;
+            const es = parseISO(e.start_time);
+            const ee = e.end_time ? parseISO(e.end_time) : es;
+            return desiredStart >= es && desiredStart < ee;
+          });
+          if (hitFixed) {
+            await updateEvent.mutateAsync({ id: hitFixed.id, data: { source_email_id: email.id, source: 'gmail' } });
+            updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
+            toast.success(`Attached to "${hitFixed.title}"`);
+            return;
+          }
         }
-        const column = isSameDay(slotStart, today) ? 'doing' : 'todo';
-        const data = emailEventData(email, slot, column, 'scheduled');
+        // Squeeze flexible items to fit the dropped time (or fall back to next available slot).
+        const slot = desiredStart
+          ? await applySqueeze(desiredStart, duration)
+          : findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
+        if (!slot) return;
+        const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
+        const data = emailEventData(email, slot, column, 'scheduled', duration);
         const ghostId = `ghost-${Date.now()}`;
         setGhosts(prev => [...prev, { id: ghostId, ...data, isGhost: true }]);
         try {
@@ -776,9 +791,18 @@ export default function Dashboard() {
         }
       } else if (destination.droppableId.startsWith('calendar-')) {
         const targetDate = destination.droppableId.replace('calendar-', '');
-        const isTargetToday = isSameDay(new Date(targetDate), today);
-        const slot = findNextAvailableSlot(events, new Date(targetDate), settings, true);
+        const dur = event.duration_minutes || settings.default_event_duration || 10;
+        const dropSlot = slotFromDropY(destination.droppableId, dragPosRef.current.y, dur);
+        let slot;
+        if (dropSlot && isFlexibleEvent(event)) {
+          slot = await applySqueeze(parseISO(dropSlot.start_time), dur, event.id);
+        } else if (dropSlot) {
+          slot = { start_time: dropSlot.start_time, end_time: dropSlot.end_time, date: dropSlot.date };
+        } else {
+          slot = findNextAvailableSlot(events, new Date(targetDate), settings, true);
+        }
         if (slot) {
+          const isTargetToday = isSameDay(parseISO(slot.start_time), today);
           updateEvent.mutate({
             id: event.id,
             data: {
@@ -789,10 +813,15 @@ export default function Dashboard() {
               status: 'scheduled',
             },
           });
+          if (event.gcal_event_id) {
+            try {
+              await base44.functions.invoke('updateGCalEvent', { gcal_event_id: event.gcal_event_id, start_time: slot.start_time, end_time: slot.end_time });
+            } catch {}
+          }
         }
       }
     }
-  }, [emails, events, settings, createEvent, updateEvent, updateEmail, createAndPushEvent, queryClient, triggerCelebration, selectedEmailIds, selectedEventIds]);
+  }, [emails, events, settings, createEvent, updateEvent, updateEmail, createAndPushEvent, applySqueeze, queryClient, triggerCelebration, selectedEmailIds, selectedEventIds]);
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
