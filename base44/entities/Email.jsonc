@@ -45,14 +45,15 @@
         "gmail",
         "whatsapp",
         "sms",
-        "linkedin"
+        "linkedin",
+        "slack"
       ],
       "default": "gmail",
       "description": "Which channel this message came through"
     },
     "external_id": {
       "type": "string",
-      "description": "External message id (Twilio SID, etc.) for dedupe across channels"
+      "description": "External message id (Twilio SID, Slack ts, etc.) for dedupe across channels"
     },
     "body": {
       "type": "string",

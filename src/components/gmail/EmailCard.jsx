@@ -28,6 +28,9 @@ export default function EmailCard({ email, onMarkRead, onSchedule, onOpen, onDel
           <div className="flex items-center justify-between gap-2 mb-1">
             <span className="text-xs font-semibold text-foreground truncate">{email.sender}</span>
             <div className="flex items-center gap-1 flex-shrink-0">
+              {email.channel === 'slack' && (
+                <span className="text-[9px] font-semibold text-accent bg-accent/15 px-1 py-0.5 rounded">Slack</span>
+              )}
               <span className="text-[10px] text-muted-foreground tabular-nums">{timeStr}</span>
               <button
                 onClick={(e) => { e.stopPropagation(); onMarkRead(email); }}

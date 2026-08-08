@@ -5,7 +5,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { format, parseISO, isSameDay, isBefore, startOfWeek, addDays } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
-import { RefreshCw, CalendarDays, List, Plus, Bell, Linkedin, MessageSquare, BarChart3 } from 'lucide-react';
+import { RefreshCw, CalendarDays, List, Plus, Bell, BarChart3 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -763,7 +763,84 @@ export default function Dashboard() {
         <InsightsPanel events={events} emails={emails} onBack={() => setScreen('app')} />
       )}
       {screen !== 'insights' && (
-      <PanelGroup direction="horizontal" className="h-screen overflow-hidden bg-background">
+      <div className="h-screen flex flex-col overflow-hidden bg-background">
+        {/* Full-width navbar */}
+        <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-card shrink-0">
+          <button
+            onClick={() => setScreen('insights')}
+            title="View performance insights"
+            className="flex items-center gap-1.5 pr-3 border-r border-border hover:opacity-80 transition-opacity"
+          >
+            <img
+              src="https://media.base44.com/images/public/6a0383b6225245c6dd116653/1946bb15d_ChatGPTImageAug6202612_27_39PM.png"
+              alt="Calkanban"
+              className="w-6 h-6 rounded-md object-cover"
+            />
+            <span className="text-sm font-semibold text-foreground tracking-tight">Calkanban</span>
+          </button>
+          <SearchBar emails={emails} events={events} onOpenEvent={setSearchEvent} onOpenEmail={handleOpenEmail} />
+          <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
+            <button
+              onClick={() => setView('calendar')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                view === 'calendar' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <CalendarDays className="w-3.5 h-3.5" />
+              Calendar
+            </button>
+            <button
+              onClick={() => setView('schedule')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                view === 'schedule' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <List className="w-3.5 h-3.5" />
+              Schedule
+            </button>
+            <button
+              onClick={() => setView('board')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                view === 'board' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <List className="w-3.5 h-3.5 rotate-90" />
+              Kanban
+            </button>
+          </div>
+          <Button variant="default" size="sm" onClick={() => setAddState({ prefill: {} })} className="h-7 gap-1.5 text-xs">
+            <Plus className="w-3.5 h-3.5" />
+            Add
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button
+              variant={showTrend ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setShowTrend((v) => !v)}
+              className="h-7 gap-1.5 text-xs"
+              title="Toggle weekly productivity trend"
+            >
+              <BarChart3 className="w-3.5 h-3.5" />
+              Trends
+            </Button>
+            <CalendarFilter visibility={visibility} events={events} />
+            <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing} className="h-7 gap-1.5 text-xs">
+              <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
+              {syncing ? 'Syncing…' : 'Sync'}
+            </Button>
+            <button
+              onClick={requestNotifications}
+              title="Enable browser notifications"
+              className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-input hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
+              <Bell className="w-3.5 h-3.5" />
+            </button>
+            <ThemeToggle />
+          </div>
+        </div>
+        {showTrend && <WeeklyTrendChart events={events} />}
+        <div className="flex-1 min-h-0">
+        <PanelGroup direction="horizontal" className="h-full">
         <Panel defaultSize={22} minSize={14} maxSize={45} className="min-w-0">
         <GmailSidebar
           emails={emails}
@@ -786,125 +863,7 @@ export default function Dashboard() {
         </Panel>
         <PanelResizeHandle className="w-1.5 bg-border hover:bg-primary/30 transition-colors cursor-col-resize data-[resize-handle-state=drag]:bg-primary/50" />
         <Panel defaultSize={78} className="min-w-0">
-        {/* Main area with toggle */}
-        <div className="h-full flex flex-col min-w-0">
-          {/* Toggle bar */}
-          <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-card">
-            <button
-              onClick={() => setScreen('insights')}
-              title="View performance insights"
-              className="flex items-center gap-1.5 pr-3 mr-1 border-r border-border hover:opacity-80 transition-opacity"
-            >
-              <img
-                src="https://media.base44.com/images/public/6a0383b6225245c6dd116653/1946bb15d_ChatGPTImageAug6202612_27_39PM.png"
-                alt="Calkanban"
-                className="w-6 h-6 rounded-md object-cover"
-              />
-              <span className="text-sm font-semibold text-foreground tracking-tight">Calkanban</span>
-            </button>
-            <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">
-              <button
-                onClick={() => setView('calendar')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  view === 'calendar'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <CalendarDays className="w-3.5 h-3.5" />
-                Calendar
-              </button>
-              <button
-                onClick={() => setView('schedule')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  view === 'schedule'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <List className="w-3.5 h-3.5" />
-                Schedule
-              </button>
-              <button
-                onClick={() => setView('board')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                  view === 'board'
-                    ? 'bg-card text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                <List className="w-3.5 h-3.5 rotate-90" />
-                Kanban
-              </button>
-            </div>
-
-            <div className="ml-auto flex items-center gap-2">
-              <SearchBar emails={emails} events={events} onOpenEvent={setSearchEvent} onOpenEmail={handleOpenEmail} />
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => setAddState({ prefill: {} })}
-                className="h-7 gap-1.5 text-xs"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add
-              </Button>
-              <Button
-                variant={showTrend ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setShowTrend((v) => !v)}
-                className="h-7 gap-1.5 text-xs"
-                title="Toggle weekly productivity trend"
-              >
-                <BarChart3 className="w-3.5 h-3.5" />
-                Trends
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setLinkedinOpen(true)}
-                className="h-7 gap-1.5 text-xs"
-                title="Post an update to LinkedIn"
-              >
-                <Linkedin className="w-3.5 h-3.5 text-[#0A66C2]" />
-                Post
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSlackOpen(true)}
-                className="h-7 gap-1.5 text-xs"
-                title="Configure Slack notifications"
-              >
-                <MessageSquare className="w-3.5 h-3.5 text-[#4A154B]" />
-                Slack
-              </Button>
-              <CalendarFilter visibility={visibility} events={events} />
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSync}
-                disabled={syncing}
-                className="h-7 gap-1.5 text-xs"
-              >
-                <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
-                {syncing ? 'Syncing…' : 'Sync'}
-              </Button>
-              <button
-                onClick={requestNotifications}
-                title="Enable browser notifications"
-                className="h-7 w-7 inline-flex items-center justify-center rounded-md border border-input hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                <Bell className="w-3.5 h-3.5" />
-              </button>
-              <ThemeToggle />
-            </div>
-          </div>
-
-          {showTrend && <WeeklyTrendChart events={events} />}
-
-          {/* Panel */}
-          <div className="flex-1 min-h-0 overflow-hidden">
+        <div className="h-full overflow-hidden">
             {view === 'calendar' ? (
               <CalendarPanel
                 events={[...activeEvents, ...ghosts]}
@@ -936,9 +895,10 @@ export default function Dashboard() {
               />
             )}
           </div>
-        </div>
         </Panel>
       </PanelGroup>
+      </div>
+      </div>
       )}
 
       <FollowUpModal

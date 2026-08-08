@@ -43,7 +43,7 @@ export default function SyncIntegrationsModal({
         <DialogHeader>
           <DialogTitle>Sync integrations</DialogTitle>
           <DialogDescription>
-            Connected services feeding your Mail inbox, Calendar, and Slack notifications.
+            Connected services feeding your Communications feed, Calendar, and Slack.
           </DialogDescription>
         </DialogHeader>
 
@@ -54,7 +54,7 @@ export default function SyncIntegrationsModal({
               <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
                 <Mail className="w-3.5 h-3.5 text-primary" />
               </div>
-              <span className="text-sm font-medium text-foreground flex-1">Mail</span>
+              <span className="text-sm font-medium text-foreground flex-1">Communications</span>
               <span className="flex items-center gap-1 text-[10px] font-medium text-green-600 bg-green-500/10 px-1.5 py-0.5 rounded-full">
                 <CheckCircle2 className="w-3 h-3" />
                 Connected

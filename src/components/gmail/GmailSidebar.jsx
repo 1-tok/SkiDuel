@@ -28,7 +28,7 @@ export default function GmailSidebar({
           <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
             <Mail className="w-3.5 h-3.5 text-primary" />
           </div>
-          <h2 className="text-sm font-semibold text-foreground">Mail</h2>
+          <h2 className="text-sm font-semibold text-foreground">Communications</h2>
           <div className="ml-auto flex items-center gap-1">
             {visibleEmails.length > 0 && (
               <span className="text-[10px] font-medium bg-primary/10 text-primary px-1.5 py-0.5 rounded-full">
@@ -94,7 +94,7 @@ export default function GmailSidebar({
                   <Inbox className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <p className="text-xs text-muted-foreground">All caught up!</p>
-                <p className="text-[10px] text-muted-foreground/60 mt-1">No unread emails</p>
+                <p className="text-[10px] text-muted-foreground/60 mt-1">No unread messages</p>
               </div>
             ) : (
               visibleEmails.map((email, index) => (
