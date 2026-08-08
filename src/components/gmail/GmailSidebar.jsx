@@ -8,6 +8,7 @@ import { Draggable, Droppable } from '@hello-pangea/dnd';
 export default function GmailSidebar({
   emails, onMarkRead, onSchedule, onOpen, onDelete, mailAccounts = [], calendarAccounts = [],
   selectedIds, onToggleSelect, onSelectAll, onBulkDelete, onBulkSchedule, onBulkDone,
+  slackConnected = false, slackChannelName, onConfigureSlack,
 }) {
   const [showRead, setShowRead] = useState(false);
   const [integrationsOpen, setIntegrationsOpen] = useState(false);
@@ -129,6 +130,9 @@ export default function GmailSidebar({
         onClose={() => setIntegrationsOpen(false)}
         mailAccounts={mailAccounts}
         calendarAccounts={calendarAccounts}
+        slackConnected={slackConnected}
+        slackChannelName={slackChannelName}
+        onConfigureSlack={() => { setIntegrationsOpen(false); onConfigureSlack?.(); }}
       />
     </div>
   );

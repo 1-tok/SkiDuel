@@ -771,6 +771,9 @@ export default function Dashboard() {
           onDelete={handleDeleteEmail}
           mailAccounts={mailAccounts}
           calendarAccounts={calendarAccounts}
+          slackConnected
+          slackChannelName={settings.slack_channel_name}
+          onConfigureSlack={() => setSlackOpen(true)}
           selectedIds={selectedEmailIds}
           onToggleSelect={toggleEmailSelect}
           onSelectAll={setEmailSelection}
