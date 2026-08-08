@@ -5,7 +5,7 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { PanelGroup, Panel, PanelResizeHandle } from 'react-resizable-panels';
 import { format, parseISO, isSameDay, isBefore, startOfWeek, addDays } from 'date-fns';
 import { findNextAvailableSlot } from '@/lib/scheduling';
-import { RefreshCw, CalendarDays, List, Plus, Bell, Linkedin } from 'lucide-react';
+import { RefreshCw, CalendarDays, List, Plus, Bell, Linkedin, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
@@ -23,6 +23,7 @@ import InsightsPanel from '@/components/insights/InsightsPanel';
 import SearchBar from '@/components/SearchBar';
 import EventModal from '@/components/kanban/EventModal';
 import LinkedInComposer from '@/components/LinkedInComposer';
+import SlackSettings from '@/components/slack/SlackSettings';
 
 const HOUR_HEIGHT = 60;
 function slotFromDropY(droppableId, clientY, durationMin) {
@@ -52,6 +53,7 @@ export default function Dashboard() {
   const [openEmailEventId, setOpenEmailEventId] = useState(null);
   const [addState, setAddState] = useState(null);
   const [linkedinOpen, setLinkedinOpen] = useState(false);
+  const [slackOpen, setSlackOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [searchEvent, setSearchEvent] = useState(null);
   const [selectedEmailIds, setSelectedEmailIds] = useState(new Set());
@@ -852,6 +854,16 @@ export default function Dashboard() {
                 <Linkedin className="w-3.5 h-3.5 text-[#0A66C2]" />
                 Post
               </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSlackOpen(true)}
+                className="h-7 gap-1.5 text-xs"
+                title="Configure Slack notifications"
+              >
+                <MessageSquare className="w-3.5 h-3.5 text-[#4A154B]" />
+                Slack
+              </Button>
               <CalendarFilter visibility={visibility} events={events} />
               <Button
                 variant="outline"
@@ -935,6 +947,8 @@ export default function Dashboard() {
       />
 
       <LinkedInComposer open={linkedinOpen} onClose={() => setLinkedinOpen(false)} />
+
+      <SlackSettings open={slackOpen} onClose={() => setSlackOpen(false)} settings={settings} onSaved={() => queryClient.invalidateQueries({ queryKey: ['settings'] })} />
 
       <CelebrationOverlay
         open={celebration.open}

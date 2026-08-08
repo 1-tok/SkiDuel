@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.40';
 import { format, parseISO, isSameDay, startOfWeek, addDays, isWithinInterval } from 'npm:date-fns@3.6.0';
+import { gatherSummaryData, buildSlackText } from '../../shared/slackSummary.ts';
 
 function escapeHtml(str) {
   return String(str || '').replace(/[&<>"']/g, (c) => ({
@@ -163,6 +164,29 @@ export default async function(req) {
       }
     }
 
+    // Also post the summary to Slack as the bot when a channel is configured.
+    let slackResult = null;
+    try {
+      const settingsList = await base44.asServiceRole.entities.UserSettings.list('-created_date', 1);
+      const slackChannelId = settingsList[0]?.slack_channel_id;
+      if (slackChannelId) {
+        const { accessToken } = await base44.asServiceRole.connectors.getConnection('slackbot');
+        const slackData = await gatherSummaryData(base44, user);
+        const slackText = buildSlackText(slackData);
+        const slackRes = await fetch('https://slack.com/api/chat.postMessage', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ channel: slackChannelId, text: slackText, username: 'Calkanban', icon_emoji: ':calendar:' }),
+        });
+        const slackJson = await slackRes.json();
+        slackResult = slackJson.ok
+          ? { channel: slackChannelId, status: 'sent' }
+          : { channel: slackChannelId, error: slackJson.error };
+      }
+    } catch (err) {
+      slackResult = { error: err.message };
+    }
+
     return Response.json({
       date: format(today, 'yyyy-MM-dd'),
       accounts: accountList,
@@ -174,6 +198,7 @@ export default async function(req) {
       backlog: backlog.length,
       pendingEmails: pendingEmails.length,
       recipients: results,
+      slack: slackResult,
     });
   } catch (error) {
     return Response.json({ error: error.message }, { status: 500 });

@@ -20,6 +20,14 @@
     "include_weekends": {
       "type": "boolean",
       "default": false
+    },
+    "slack_channel_id": {
+      "type": "string",
+      "description": "Slack channel the bot posts automated notifications and the daily summary to"
+    },
+    "slack_channel_name": {
+      "type": "string",
+      "description": "Display name of the chosen Slack channel"
     }
   },
   "required": []
