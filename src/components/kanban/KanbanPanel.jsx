@@ -27,20 +27,10 @@ export default function KanbanPanel({
 
   const selected = selectedIds || new Set();
   const someSelected = selected.size > 0;
-  const allSelected = own.length > 0 && own.every(e => selected.has(e.id));
 
   return (
     <div className="h-full flex flex-col bg-muted/30">
       <div className="px-4 py-1.5 border-b border-border bg-card/60 flex items-center gap-2 flex-wrap">
-        <label className="flex items-center gap-1.5 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={(e) => onSelectAll?.(own.map(o => o.id), e.target.checked)}
-            className="w-3.5 h-3.5 accent-primary rounded"
-          />
-          <span className="text-[11px] text-muted-foreground">Select all</span>
-        </label>
         {someSelected && (
           <>
             <span className="text-[11px] font-medium text-primary">{selected.size} selected</span>
@@ -82,6 +72,7 @@ export default function KanbanPanel({
             onUpdate={onUpdate}
             selectedIds={selected}
             onToggleSelect={onToggleSelect}
+            onSelectAll={onSelectAll}
           />
         ))}
       </div>

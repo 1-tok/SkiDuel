@@ -10,14 +10,22 @@ const columnConfig = {
   past: { label: 'Past', color: 'bg-slate-400', emptyText: 'No past items' },
 };
 
-export default function KanbanColumn({ columnId, events, onAdd, onDelete, onUpdate, selectedIds, onToggleSelect }) {
+export default function KanbanColumn({ columnId, events, onAdd, onDelete, onUpdate, selectedIds, onToggleSelect, onSelectAll }) {
   const config = columnConfig[columnId];
   const selected = selectedIds || new Set();
+  const allSelected = events.length > 0 && events.every(e => selected.has(e.id));
 
   return (
     <div className="flex flex-col w-72 min-w-[288px] bg-card rounded-xl border border-border shadow-sm">
       {/* Column header */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+        <input
+          type="checkbox"
+          checked={allSelected}
+          onChange={(e) => onSelectAll?.(events.map(ev => ev.id), e.target.checked)}
+          title={`Select all in ${config.label}`}
+          className="w-3.5 h-3.5 accent-primary rounded cursor-pointer"
+        />
         <div className={`w-2.5 h-2.5 rounded-full ${config.color}`} />
         <span className="text-xs font-semibold text-foreground uppercase tracking-wider">{config.label}</span>
         <span className="ml-auto text-[10px] font-medium bg-muted text-muted-foreground rounded-full px-2 py-0.5">
