@@ -1,39 +1,52 @@
 import React, { useState } from 'react';
 import { base44 } from '@/api/base44Client';
-import { Sparkles, Mail, CalendarDays, ArrowRight, ArrowLeft, Check, ListTodo, Columns, Hash, MessageCircle } from 'lucide-react';
+import { Sparkles, ArrowRight, ArrowLeft, Check } from 'lucide-react';
 import ConnectStep from './ConnectStep';
-
-const comingSoon = [
-  { icon: ListTodo, name: 'ClickUp', desc: 'Tasks & docs' },
-  { icon: Columns, name: 'Trello', desc: 'Boards & cards' },
-  { icon: Hash, name: 'Slack', desc: 'Channel messages' },
-  { icon: MessageCircle, name: 'WhatsApp', desc: 'Chat & replies' },
-];
-
-const TOTAL = 5;
+import { CONNECTABLE, COMING_SOON } from '@/lib/integrations';
 
 export default function Onboarding({ onComplete }) {
-  const [step, setStep] = useState(0);
-  const [gmail, setGmail] = useState('idle');
-  const [cal, setCal] = useState('idle');
+  const [step, setStep] = useState(0); // 0 = welcome; 1..n = connect steps; then coming soon; then done
+  const [status, setStatus] = useState({});
 
-  const connectGmail = async () => {
-    setGmail('connecting');
+  const n = CONNECTABLE.length;
+  const comingSoonStep = 1 + n;
+  const doneStep = 1 + n + 1;
+  const TOTAL = doneStep + 1;
+
+  const connectItem = step >= 1 && step <= n ? CONNECTABLE[step - 1] : null;
+
+  const setStatusFor = (key, value) => setStatus((s) => ({ ...s, [key]: value }));
+
+  // Rule 2 (app-user): invoking the sync function doubles as the connection check.
+  const verify = async (item) => {
     try {
-      await base44.functions.invoke('syncGmail', {});
-      setGmail('connected');
+      await base44.functions.invoke(item.syncFn, {});
+      setStatusFor(item.key, 'connected');
     } catch {
-      setGmail('error');
+      setStatusFor(item.key, 'error');
     }
   };
 
-  const connectCal = async () => {
-    setCal('connecting');
+  const connect = async (item) => {
+    setStatusFor(item.key, 'connecting');
     try {
-      await base44.functions.invoke('syncGoogleCalendar', {});
-      setCal('connected');
+      if (item.connectorId) {
+        // Rule 3 (app-user): open OAuth in a popup, then refresh when it closes.
+        const url = await base44.connectors.connectAppUser(item.connectorId);
+        const popup = window.open(url, '_blank');
+        const timer = setInterval(() => {
+          if (!popup || popup.closed) {
+            clearInterval(timer);
+            verify(item);
+          }
+        }, 600);
+      } else {
+        // No per-user connector configured yet — verify the shared connection.
+        await base44.functions.invoke(item.syncFn, {});
+        setStatusFor(item.key, 'connected');
+      }
     } catch {
-      setCal('error');
+      setStatusFor(item.key, 'error');
     }
   };
 
@@ -86,42 +99,28 @@ export default function Onboarding({ onComplete }) {
             </div>
           )}
 
-          {step === 1 && (
+          {connectItem && (
             <ConnectStep
-              icon={Mail}
-              accentClass="bg-primary/10 text-primary"
-              title="Connect your Gmail"
-              body="Pull your inbox into one stream you can drag straight onto your day."
-              status={gmail}
-              onConnect={connectGmail}
+              icon={connectItem.icon}
+              accentClass={connectItem.accent}
+              title={`Connect your ${connectItem.label}`}
+              body={connectItem.body}
+              status={status[connectItem.key] || 'idle'}
+              onConnect={() => connect(connectItem)}
               onContinue={next}
               onSkip={next}
               onBack={back}
             />
           )}
 
-          {step === 2 && (
-            <ConnectStep
-              icon={CalendarDays}
-              accentClass="bg-accent/15 text-accent"
-              title="Connect Google Calendar"
-              body="See your real meetings so Calkanban can schedule around them — never double-booked."
-              status={cal}
-              onConnect={connectCal}
-              onContinue={next}
-              onSkip={next}
-              onBack={back}
-            />
-          )}
-
-          {step === 3 && (
+          {step === comingSoonStep && (
             <div>
               <h2 className="text-center text-2xl font-semibold tracking-tight">More integrations coming soon</h2>
               <p className="mt-2 text-center text-sm text-muted-foreground">
                 We're working on bringing even more of your tools into one place.
               </p>
               <div className="mt-6 grid grid-cols-2 gap-3">
-                {comingSoon.map(({ icon: Icon, name, desc }) => (
+                {COMING_SOON.map(({ icon: Icon, name, desc }) => (
                   <div key={name} className="relative rounded-xl border border-border bg-card p-4">
                     <span className="absolute right-3 top-3 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       Coming soon
@@ -151,7 +150,7 @@ export default function Onboarding({ onComplete }) {
             </div>
           )}
 
-          {step === 4 && (
+          {step === doneStep && (
             <div className="text-center">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-500">
                 <Check className="h-8 w-8" />

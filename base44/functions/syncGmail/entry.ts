@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
+import { GMAIL_CONNECTOR_ID } from '../../shared/integrationConfig.ts';
 
 function decodeBase64(str) {
   const normalized = str.replace(/-/g, '+').replace(/_/g, '/');
@@ -87,6 +88,18 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
     const results = [];
+
+    // Per-user (app-user) connection: when a workspace connector id is configured,
+    // sync the signed-in user's own Gmail only and skip the shared builder account.
+    if (GMAIL_CONNECTOR_ID) {
+      try {
+        const { accessToken } = await base44.asServiceRole.connectors.getCurrentAppUserConnection(GMAIL_CONNECTOR_ID);
+        results.push(await syncOneGmailAccount(base44, accessToken));
+      } catch (e) {
+        results.push({ account: 'app_user', error: e.message });
+      }
+      return Response.json({ results });
+    }
 
     // Primary shared connection
     try {

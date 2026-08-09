@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.25';
 import { format } from 'npm:date-fns@3.6.0';
 import { dedupeGcalEvents } from '../../shared/dedupeGcalEvents.ts';
+import { GCAL_CONNECTOR_ID } from '../../shared/integrationConfig.ts';
 
 function mapGCalEvent(gcEvent, calendarName, isShared, sourceAccount) {
   const start = gcEvent.start?.dateTime || gcEvent.start?.date;
@@ -179,6 +180,19 @@ Deno.serve(async (req) => {
     for (const v of existingVis) existingVisByKey[`${v.source_account}|${v.calendar_name}`] = true;
 
     const results = [];
+
+    // Per-user (app-user) connection: when a workspace connector id is configured,
+    // sync the signed-in user's own calendar only and skip the shared builder account.
+    if (GCAL_CONNECTOR_ID) {
+      try {
+        const { accessToken } = await base44.asServiceRole.connectors.getCurrentAppUserConnection(GCAL_CONNECTOR_ID);
+        results.push(await syncOneCalendarAccount(base44, accessToken, existingByGCalId, existingVisByKey));
+      } catch (e) {
+        results.push({ account: 'app_user', error: e.message });
+      }
+      await dedupeGcalEvents(base44);
+      return Response.json({ results });
+    }
 
     // Primary shared connection
     try {
