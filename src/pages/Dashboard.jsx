@@ -33,9 +33,9 @@ function slotFromDropY(droppableId, clientY, durationMin) {
   const rect = el.getBoundingClientRect();
   // Month-view day cells are short (no 24h axis) — can't map Y to a time slot.
   if (rect.height < 24 * HOUR_HEIGHT * 0.5) return null;
-  const scrollContainer = el.closest('[data-calendar-scroll]');
-  const scrollTop = scrollContainer?.scrollTop ?? 0;
-  const relY = clientY - rect.top + scrollTop;
+  // getBoundingClientRect() is viewport-relative (already scroll-adjusted), so clientY - rect.top
+  // is the correct position within the 24h column — do NOT add scrollTop (double-counts → 23:00).
+  const relY = clientY - rect.top;
   let minutes = Math.max(0, Math.min(23 * 60, Math.round((relY / HOUR_HEIGHT) * 60)));
   minutes = Math.round(minutes / 15) * 15;
   const targetDate = droppableId.replace('calendar-', '');
@@ -605,8 +605,10 @@ export default function Dashboard() {
         const isTodayCol = column === 'doing';
         const duration = isTodayCol ? 15 : (settings.default_event_duration ?? 10);
         const status = column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled';
+        const searchFrom = new Date();
+        if (column === 'todo') searchFrom.setDate(searchFrom.getDate() + 1);
         for (const em of targets) {
-          const slot = findNextAvailableSlot(booked, today, { ...settings, default_event_duration: duration }, isTodayCol);
+          const slot = findNextAvailableSlot(booked, searchFrom, { ...settings, default_event_duration: duration }, isTodayCol);
           if (!slot) break;
           booked.push({ start_time: slot.start_time, end_time: slot.end_time });
           await createEvent.mutateAsync(emailEventData(em, slot, column, status, duration));
@@ -706,13 +708,20 @@ export default function Dashboard() {
         const isTodayCol = column === 'doing';
         // Emails added to "Doing" book the next available 15-minute slot today.
         const duration = isTodayCol ? 15 : (settings.default_event_duration ?? 10);
-        const slot = findNextAvailableSlot(events, today, { ...settings, default_event_duration: duration }, isTodayCol);
+        // "To Do" holds future tasks: schedule starting tomorrow so the item stays in the To-Do
+        // column (a today slot would roll it into Doing) and shows up on the calendar.
+        const searchFrom = new Date();
+        if (column === 'todo') searchFrom.setDate(searchFrom.getDate() + 1);
+        const slot = findNextAvailableSlot(events, searchFrom, { ...settings, default_event_duration: duration }, isTodayCol);
         if (!slot) return;
         const status = column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled';
         await createEvent.mutateAsync(emailEventData(email, slot, column, status, duration));
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       } else if (destination.droppableId === 'schedule') {
-        const slot = findNextAvailableSlot(events, today, settings);
+        // Schedule is a chronological list — place the email at the next available slot today
+        // (so it lands in the Today group where it's dropped), falling back to the next available
+        // day if today is full.
+        const slot = findNextAvailableSlot(events, today, settings, true) || findNextAvailableSlot(events, today, settings);
         if (!slot) return;
         const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
         const data = emailEventData(email, slot, column, 'scheduled');

@@ -75,10 +75,10 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
 
   const getMinutesFromY = useCallback((y) => {
     if (!containerRef.current) return 0;
-    const scrollContainer = containerRef.current.closest('[data-calendar-scroll]');
-    const scrollTop = scrollContainer?.scrollTop ?? 0;
+    // getBoundingClientRect() is viewport-relative (already scroll-adjusted), so y - rect.top is
+    // the correct position within the 24h column — do NOT add scrollTop (double-counts the scroll).
     const rect = containerRef.current.getBoundingClientRect();
-    const relY = y - rect.top + scrollTop;
+    const relY = y - rect.top;
     return Math.max(0, Math.min(23 * 60 + 59, (relY / HOUR_HEIGHT) * 60));
   }, []);
 
