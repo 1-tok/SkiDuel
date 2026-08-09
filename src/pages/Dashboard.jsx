@@ -298,10 +298,22 @@ export default function Dashboard() {
     setCelebration({ open: true, stats: { doneToday, doneThisWeek, leftToday } });
   }, [events]);
 
-  const handleFollowUpAction = useCallback((event, action, followUpText) => {
+  const handleFollowUpAction = useCallback(async (event, action, followUpText) => {
     if (action === 'completed') {
       updateEvent.mutate({ id: event.id, data: { status: 'completed', kanban_column: 'done' } });
       triggerCelebration(event.id);
+    } else if (action === 'extend') {
+      // The slot ended before the item was finished — reschedule it to the next available
+      // slot and sync the new time to Google Calendar.
+      const slot = findNextAvailableSlot(events, new Date(), settings);
+      if (!slot) { toast.error('No available slot to extend to'); return; }
+      const today = new Date();
+      const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
+      await updateEvent.mutateAsync({ id: event.id, data: { status: 'scheduled', kanban_column: column, start_time: slot.start_time, end_time: slot.end_time, date: slot.date } });
+      if (event.gcal_event_id) {
+        try { await base44.functions.invoke('updateGCalEvent', { gcal_event_id: event.gcal_event_id, start_time: slot.start_time, end_time: slot.end_time }); } catch {}
+      }
+      toast.message(`Extended to ${format(parseISO(slot.start_time), 'EEE h:mm a')}`);
     } else if (action === 'cancelled') {
       updateEvent.mutate({ id: event.id, data: { status: 'cancelled', kanban_column: 'past' } });
     } else if (action === 'needs_followup') {

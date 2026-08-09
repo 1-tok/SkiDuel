@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { CheckCircle, XCircle, ArrowRight, CalendarClock } from 'lucide-react';
 
 export default function FollowUpModal({ event, open, onClose, onAction }) {
   const [showFollowUp, setShowFollowUp] = useState(false);
@@ -54,7 +54,15 @@ export default function FollowUpModal({ event, open, onClose, onAction }) {
               className="justify-start gap-3 h-11 text-sm hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200"
             >
               <CheckCircle className="w-4 h-4 text-emerald-500" />
-              Completed
+              Mark as done
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => handleAction('extend')}
+              className="justify-start gap-3 h-11 text-sm hover:bg-primary/5 hover:text-primary hover:border-primary/20"
+            >
+              <CalendarClock className="w-4 h-4 text-primary" />
+              Extend to another slot
             </Button>
             <Button
               variant="outline"
