@@ -834,16 +834,12 @@ export default function Dashboard() {
 
   return (
     <DragDropContext onDragStart={() => { suppressClickRef.current = true; }} onDragEnd={handleDragEnd}>
-      {screen === 'insights' && (
-        <InsightsPanel events={events} emails={emails} onBack={() => setScreen('app')} />
-      )}
-      {screen !== 'insights' && (
       <div className="h-screen flex flex-col overflow-hidden bg-background">
         {/* Full-width navbar */}
         <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-card shrink-0">
           <button
-            onClick={() => setScreen('insights')}
-            title="View performance insights"
+            onClick={() => setScreen(s => s === 'insights' ? 'app' : 'insights')}
+            title={screen === 'insights' ? "Back to dashboard" : "View performance insights"}
             className="flex items-center gap-1.5 pr-3 border-r border-border hover:opacity-80 transition-opacity"
           >
             <img
@@ -913,9 +909,12 @@ export default function Dashboard() {
             <ThemeToggle />
           </div>
         </div>
-        {showTrend && <WeeklyTrendChart events={events} />}
+        {showTrend && screen !== 'insights' && <WeeklyTrendChart events={events} />}
         <div className="flex-1 min-h-0">
-        <PanelGroup direction="horizontal" className="h-full">
+          {screen === 'insights' ? (
+            <InsightsPanel events={events} emails={emails} onBack={() => setScreen('app')} />
+          ) : (
+          <PanelGroup direction="horizontal" className="h-full">
         <Panel defaultSize={22} minSize={14} maxSize={45} className="min-w-0">
         <GmailSidebar
           emails={emails}
@@ -972,9 +971,9 @@ export default function Dashboard() {
           </div>
         </Panel>
       </PanelGroup>
-      </div>
-      </div>
       )}
+      </div>
+      </div>
 
       <FollowUpModal
         event={followUpEvent}
