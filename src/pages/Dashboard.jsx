@@ -67,9 +67,13 @@ export default function Dashboard() {
   const suppressClickRef = useRef(false);
 
   useEffect(() => {
-    const onMove = (e) => { dragPosRef.current.y = e.clientY; };
+    const onMove = (e) => { if (e.clientY != null) dragPosRef.current.y = e.clientY; };
     window.addEventListener('mousemove', onMove);
-    return () => window.removeEventListener('mousemove', onMove);
+    window.addEventListener('pointermove', onMove);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('pointermove', onMove);
+    };
   }, []);
 
   // After a drag-and-drop, a click event fires on the drop target. Calendar/schedule/kanban

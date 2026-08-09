@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { Plus } from 'lucide-react';
 import KanbanCard from './KanbanCard';
@@ -14,6 +14,10 @@ export default function KanbanColumn({ columnId, events, onAdd, onDelete, onUpda
   const config = columnConfig[columnId];
   const selected = selectedIds || new Set();
   const allSelected = events.length > 0 && events.every(e => selected.has(e.id));
+  // Track whether a press started on a card. A real "click empty area to add" starts on the
+  // empty area; a released drag (or a sub-threshold drag treated as a click) starts on a card
+  // and must NOT open the Add modal.
+  const mouseDownOnCard = useRef(false);
 
   return (
     <div className="flex flex-col w-72 min-w-[288px] bg-card rounded-xl border border-border shadow-sm">
@@ -46,7 +50,12 @@ export default function KanbanColumn({ columnId, events, onAdd, onDelete, onUpda
           <div
             ref={provided.innerRef}
             {...provided.droppableProps}
-            onClick={(e) => { if (!e.target.closest('[data-kanban-card]')) onAdd?.(columnId); }}
+            onMouseDown={(e) => { mouseDownOnCard.current = !!e.target.closest('[data-kanban-card]'); }}
+            onClick={(e) => {
+              if (e.target.closest('[data-kanban-card]')) return;
+              if (mouseDownOnCard.current) { mouseDownOnCard.current = false; return; }
+              onAdd?.(columnId);
+            }}
             className={`flex-1 overflow-y-auto p-3 space-y-2 min-h-[200px] rounded-b-xl transition-colors ${
               snapshot.isDraggingOver ? 'bg-primary/10 ring-2 ring-primary/30 ring-inset' : ''
             }`}
