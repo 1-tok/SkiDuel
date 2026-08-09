@@ -1,11 +1,11 @@
 import React from 'react';
 import { CheckCircle2, Loader2, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 
-export default function ConnectStep({ icon: Icon, accentClass, title, body, status, onConnect, onContinue, onSkip, onBack }) {
+export default function ConnectStep({ logo, title, body, status, onConnect, onContinue, onSkip, onBack }) {
   return (
     <div>
-      <div className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl ${accentClass}`}>
-        <Icon className="h-7 w-7" />
+      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-muted">
+        <img src={logo} alt={title} className="h-8 w-8" />
       </div>
       <h2 className="mt-5 text-center text-2xl font-semibold tracking-tight">{title}</h2>
       <p className="mt-2 text-center text-sm text-muted-foreground">{body}</p>

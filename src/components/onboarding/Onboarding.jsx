@@ -101,8 +101,7 @@ export default function Onboarding({ onComplete }) {
 
           {connectItem && (
             <ConnectStep
-              icon={connectItem.icon}
-              accentClass={connectItem.accent}
+              logo={connectItem.logo}
               title={`Connect your ${connectItem.label}`}
               body={connectItem.body}
               status={status[connectItem.key] || 'idle'}
@@ -120,13 +119,13 @@ export default function Onboarding({ onComplete }) {
                 We're working on bringing even more of your tools into one place.
               </p>
               <div className="mt-6 grid grid-cols-2 gap-3">
-                {COMING_SOON.map(({ icon: Icon, name, desc }) => (
+                {COMING_SOON.map(({ logo, name, desc }) => (
                   <div key={name} className="relative rounded-xl border border-border bg-card p-4">
                     <span className="absolute right-3 top-3 rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
                       Coming soon
                     </span>
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
-                      <Icon className="h-5 w-5" />
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted">
+                      <img src={logo} alt={name} className="h-5 w-5" />
                     </div>
                     <p className="mt-3 text-sm font-medium">{name}</p>
                     <p className="text-xs text-muted-foreground">{desc}</p>
