@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { parseISO, format, isToday, isTomorrow } from 'date-fns';
-import { Mail, Share2, CalendarClock, Trash2 } from 'lucide-react';
+import { Mail, Share2, CalendarClock, Trash2, Users } from 'lucide-react';
 import { Droppable } from '@hello-pangea/dnd';
+import { formatAttendees } from '@/lib/attendees';
 import EventModal from '../kanban/EventModal';
 
 const statusStyles = {
@@ -116,6 +117,12 @@ export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
                               )}
                               {e.source_account && (
                                 <span className="text-[10px] text-muted-foreground/70">via {e.source_account}</span>
+                              )}
+                              {formatAttendees(e.attendees, 2) && (
+                                <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                                  <Users className="w-2.5 h-2.5" />
+                                  {formatAttendees(e.attendees, 2)}
+                                </span>
                               )}
                             </div>
                           </>

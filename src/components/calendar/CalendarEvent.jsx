@@ -2,6 +2,7 @@ import React from 'react';
 import { Mail, GripVertical, Users, Trash2 } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getEventColor, getCalendarColor } from '@/lib/scheduling';
+import { formatAttendees } from '@/lib/attendees';
 
 export default function CalendarEvent({ event, isDragging, style, isGhost, onDelete }) {
   const colors = getEventColor(getCalendarColor(event));
@@ -9,6 +10,7 @@ export default function CalendarEvent({ event, isDragging, style, isGhost, onDel
   const isCancelled = event.status === 'cancelled';
   const isShared = !!event.is_shared_calendar;
   const startTime = format(parseISO(event.start_time), 'h:mm a');
+  const attendeesLabel = formatAttendees(event.attendees, 2);
 
   return (
     <div
@@ -53,6 +55,12 @@ export default function CalendarEvent({ event, isDragging, style, isGhost, onDel
           <span className={`text-[10px] truncate block ${isGhost ? 'text-primary/60' : `${colors.text} opacity-60`}`}>
             {startTime}{isGhost ? ' · creating…' : (isShared && event.calendar_name ? ` · via ${event.calendar_name}` : (event.calendar_name && event.calendar_name !== 'primary' ? ` · ${event.calendar_name}` : ''))}{!isGhost && event.source_account && event.source_account !== 'primary' ? ` · ${event.source_account}` : ''}
           </span>
+          {!isGhost && attendeesLabel && (
+            <span className={`text-[9px] truncate flex items-center gap-0.5 ${colors.text} opacity-75`}>
+              <Users className="w-2 h-2 flex-shrink-0" />
+              {attendeesLabel}
+            </span>
+          )}
         </div>
       </div>
     </div>

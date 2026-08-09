@@ -22,6 +22,12 @@ function mapGCalEvent(gcEvent, calendarName, isShared, sourceAccount) {
   today.setHours(0, 0, 0, 0);
   const isToday = startDate >= today && startDate < new Date(today.getTime() + 86400000);
 
+  // Attendees: prefer display name, fall back to email. Exclude the organizer's own
+  // copy if it appears as an attendee so the card shows the *other* invitees.
+  const attendees = (gcEvent.attendees || [])
+    .map((a) => a.displayName || a.email)
+    .filter(Boolean);
+
   return {
     title: gcEvent.summary || '(No title)',
     description: gcEvent.description || '',
@@ -37,6 +43,7 @@ function mapGCalEvent(gcEvent, calendarName, isShared, sourceAccount) {
     _isToday: isToday,
     color: colorMap[gcEvent.colorId] || 'blue',
     gcal_event_id: gcEvent.id,
+    attendees,
   };
 }
 

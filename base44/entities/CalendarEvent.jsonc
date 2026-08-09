@@ -99,6 +99,14 @@
       "type": "boolean",
       "default": false,
       "description": "True for to-do items the user can reshuffle (manual/email). Fixed meetings (synced from Google Calendar) stay false and are never moved by squeeze."
+    },
+    "attendees": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "default": [],
+      "description": "Display names of people invited to this meeting (synced from Google Calendar)"
     }
   },
   "required": [

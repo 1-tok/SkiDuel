@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Mail, Clock, GripVertical, Trash2, Check } from 'lucide-react';
+import { Mail, Clock, GripVertical, Trash2, Check, Users } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
 import { getEventColor } from '@/lib/scheduling';
+import { formatAttendees } from '@/lib/attendees';
 import EventModal from './EventModal';
 
 export default function KanbanCard({ event, isDragging, onDelete, onUpdate, selected, onToggleSelect }) {
@@ -10,6 +11,7 @@ export default function KanbanCard({ event, isDragging, onDelete, onUpdate, sele
   const isCompleted = event.status === 'completed';
   const isCancelled = event.status === 'cancelled';
   const startTime = event.start_time ? format(parseISO(event.start_time), 'h:mm a') : '';
+  const attendeesLabel = formatAttendees(event.attendees, 2);
 
   return (
     <>
@@ -63,6 +65,12 @@ export default function KanbanCard({ event, isDragging, onDelete, onUpdate, sele
                 <Mail className="w-2.5 h-2.5 text-muted-foreground" />
               )}
             </div>
+            {attendeesLabel && (
+              <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate mt-1">
+                <Users className="w-2.5 h-2.5 flex-shrink-0" />
+                <span className="truncate">{attendeesLabel}</span>
+              </div>
+            )}
           </div>
         </div>
       </div>
