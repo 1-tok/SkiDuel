@@ -404,12 +404,23 @@ export default function Dashboard() {
   // Returns the actual { start_time, end_time, date } the new item should occupy.
   const applySqueeze = useCallback(async (desiredStart, duration, excludeId) => {
     const pool = excludeId ? events.filter(e => e.id !== excludeId) : events;
-    const squeeze = computeSqueeze(pool, desiredStart, duration);
+    let squeeze;
+    try {
+      squeeze = computeSqueeze(pool, desiredStart, duration);
+    } catch (e) {
+      console.error('computeSqueeze failed', e);
+      const newEnd = new Date(desiredStart.getTime() + duration * 60000);
+      return { start_time: desiredStart.toISOString(), end_time: newEnd.toISOString(), date: format(desiredStart, 'yyyy-MM-dd') };
+    }
     if (squeeze.updates.length > 0) {
-      await base44.entities.CalendarEvent.bulkUpdate(
-        squeeze.updates.map(u => ({ id: u.id, start_time: u.start_time, end_time: u.end_time, date: u.date }))
-      );
-      queryClient.invalidateQueries({ queryKey: ['events'] });
+      try {
+        await base44.entities.CalendarEvent.bulkUpdate(
+          squeeze.updates.map(u => ({ id: u.id, start_time: u.start_time, end_time: u.end_time, date: u.date }))
+        );
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+      } catch (e) {
+        console.error('squeeze bulkUpdate failed', e);
+      }
       for (const u of squeeze.updates) {
         const ev = events.find(e => e.id === u.id);
         if (ev?.gcal_event_id) {
@@ -586,7 +597,7 @@ export default function Dashboard() {
           if (!slot) break;
           const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
           booked.push({ start_time: slot.start_time, end_time: slot.end_time });
-          await createAndPushEvent(emailEventData(em, slot, column, 'scheduled', duration));
+          await createEvent.mutateAsync(emailEventData(em, slot, column, 'scheduled', duration));
           updateEmail.mutate({ id: em.id, data: { is_actioned: true } });
         }
       } else if (dest.droppableId.startsWith('kanban-')) {
@@ -598,7 +609,7 @@ export default function Dashboard() {
           const slot = findNextAvailableSlot(booked, today, { ...settings, default_event_duration: duration }, isTodayCol);
           if (!slot) break;
           booked.push({ start_time: slot.start_time, end_time: slot.end_time });
-          await createAndPushEvent(emailEventData(em, slot, column, status, duration));
+          await createEvent.mutateAsync(emailEventData(em, slot, column, status, duration));
           updateEmail.mutate({ id: em.id, data: { is_actioned: true } });
         }
       } else if (dest.droppableId === 'schedule') {
@@ -607,7 +618,7 @@ export default function Dashboard() {
           if (!slot) break;
           const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
           booked.push({ start_time: slot.start_time, end_time: slot.end_time });
-          await createAndPushEvent(emailEventData(em, slot, column, 'scheduled'));
+          await createEvent.mutateAsync(emailEventData(em, slot, column, 'scheduled'));
           updateEmail.mutate({ id: em.id, data: { is_actioned: true } });
         }
       }
@@ -685,7 +696,7 @@ export default function Dashboard() {
         const ghostId = `ghost-${Date.now()}`;
         setGhosts(prev => [...prev, { id: ghostId, ...data, isGhost: true }]);
         try {
-          await createAndPushEvent(data);
+          await createEvent.mutateAsync(data);
         } finally {
           setGhosts(prev => prev.filter(g => g.id !== ghostId));
         }
@@ -698,7 +709,7 @@ export default function Dashboard() {
         const slot = findNextAvailableSlot(events, today, { ...settings, default_event_duration: duration }, isTodayCol);
         if (!slot) return;
         const status = column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled';
-        await createAndPushEvent(emailEventData(email, slot, column, status, duration));
+        await createEvent.mutateAsync(emailEventData(email, slot, column, status, duration));
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       } else if (destination.droppableId === 'schedule') {
         const slot = findNextAvailableSlot(events, today, settings);
@@ -708,7 +719,7 @@ export default function Dashboard() {
         const ghostId = `ghost-${Date.now()}`;
         setGhosts(prev => [...prev, { id: ghostId, ...data, isGhost: true }]);
         try {
-          await createAndPushEvent(data);
+          await createEvent.mutateAsync(data);
         } finally {
           setGhosts(prev => prev.filter(g => g.id !== ghostId));
         }
@@ -824,7 +835,7 @@ export default function Dashboard() {
   }, [emails, events, settings, createEvent, updateEvent, updateEmail, createAndPushEvent, applySqueeze, queryClient, triggerCelebration, selectedEmailIds, selectedEventIds]);
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
+    <DragDropContext onDragStart={() => { suppressClickRef.current = true; }} onDragEnd={handleDragEnd}>
       {screen === 'insights' && (
         <InsightsPanel events={events} emails={emails} onBack={() => setScreen('app')} />
       )}
