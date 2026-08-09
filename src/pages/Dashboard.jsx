@@ -186,7 +186,18 @@ export default function Dashboard() {
   // Mutations
   const updateEmail = useMutation({
     mutationFn: ({ id, data }) => base44.entities.Email.update(id, data),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['emails'] }),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['emails'] });
+      // When an email leaves Communications (actioned or read), mirror that to Gmail so
+      // the email client shows it as read too. Read from cache to avoid a stale closure.
+      if (variables.data?.is_actioned || variables.data?.is_read) {
+        const cached = queryClient.getQueryData(['emails']) || [];
+        const email = cached.find(e => e.id === variables.id);
+        if (email?.gmail_id) {
+          base44.functions.invoke('markGmailRead', { gmail_id: email.gmail_id, source_account: email.source_account }).catch(() => {});
+        }
+      }
+    },
   });
 
   const createEvent = useMutation({
@@ -222,14 +233,14 @@ export default function Dashboard() {
 
   const handleDeleteEmail = useCallback(async (email) => {
     // Soft-delete: archive the email as a Past record (retain it, don't trash in Gmail).
+    // Routes through updateEmail so the message is also marked read in Gmail.
     try {
-      await base44.entities.Email.update(email.id, { is_actioned: true, is_read: true });
-      queryClient.invalidateQueries({ queryKey: ['emails'] });
+      await updateEmail.mutateAsync({ id: email.id, data: { is_actioned: true, is_read: true } });
       toast.success('Moved to Past');
     } catch (e) {
       toast.error('Could not move to Past: ' + (e?.message || e));
     }
-  }, [queryClient]);
+  }, [updateEmail]);
 
   const handleDeleteEvent = useCallback(async (event) => {
     // Soft-delete: move the item into the Past record instead of permanently removing it.
@@ -503,20 +514,18 @@ export default function Dashboard() {
   const bulkArchiveEmails = useCallback(async () => {
     const ids = [...selectedEmailIds];
     if (!ids.length) return;
-    await Promise.all(ids.map(id => base44.entities.Email.update(id, { is_actioned: true, is_read: true })));
-    queryClient.invalidateQueries({ queryKey: ['emails'] });
+    await Promise.all(ids.map(id => updateEmail.mutateAsync({ id, data: { is_actioned: true, is_read: true } })));
     setSelectedEmailIds(new Set());
     toast.success(`Moved ${ids.length} to Past`);
-  }, [selectedEmailIds, queryClient]);
+  }, [selectedEmailIds, updateEmail]);
 
   const bulkDoneEmails = useCallback(async () => {
     const ids = [...selectedEmailIds];
     if (!ids.length) return;
-    await Promise.all(ids.map(id => base44.entities.Email.update(id, { is_actioned: true, is_read: true })));
-    queryClient.invalidateQueries({ queryKey: ['emails'] });
+    await Promise.all(ids.map(id => updateEmail.mutateAsync({ id, data: { is_actioned: true, is_read: true } })));
     setSelectedEmailIds(new Set());
     toast.success(`Marked ${ids.length} done`);
-  }, [selectedEmailIds, queryClient]);
+  }, [selectedEmailIds, updateEmail]);
 
   const bulkScheduleEmails = useCallback(async () => {
     const targets = emails.filter(e => selectedEmailIds.has(e.id));
@@ -536,13 +545,13 @@ export default function Dashboard() {
         kanban_column: isSameDay(parseISO(slot.start_time), new Date()) ? 'doing' : 'todo',
         color: 'blue', status: 'scheduled',
       });
-      await base44.entities.Email.update(email.id, { is_actioned: true });
+      await updateEmail.mutateAsync({ id: email.id, data: { is_actioned: true } });
       count++;
     }
     queryClient.invalidateQueries({ queryKey: ['emails'] });
     setSelectedEmailIds(new Set());
     toast.success(`Scheduled ${count} emails`);
-  }, [selectedEmailIds, emails, events, settings, createAndPushEvent, queryClient]);
+  }, [selectedEmailIds, emails, events, settings, createAndPushEvent, updateEmail, queryClient]);
 
   const bulkDeleteEvents = useCallback(async () => {
     const ids = [...selectedEventIds];
