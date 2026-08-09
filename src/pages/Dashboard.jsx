@@ -672,23 +672,8 @@ export default function Dashboard() {
         const duration = settings.default_event_duration ?? 10;
         const dropSlot = slotFromDropY(destination.droppableId, dragPosRef.current.y, duration);
         const desiredStart = dropSlot ? parseISO(dropSlot.start_time) : null;
-        // Dropped directly onto a fixed meeting → attach the email to it (can't squeeze a meeting).
-        if (desiredStart) {
-          const dayOwn = events.filter(e => e.start_time && isSameDay(parseISO(e.start_time), new Date(targetDate)));
-          const hitFixed = dayOwn.find(e => {
-            if (isFlexibleEvent(e)) return false;
-            const es = parseISO(e.start_time);
-            const ee = e.end_time ? parseISO(e.end_time) : es;
-            return desiredStart >= es && desiredStart < ee;
-          });
-          if (hitFixed) {
-            await updateEvent.mutateAsync({ id: hitFixed.id, data: { source_email_id: email.id, source: 'gmail' } });
-            updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
-            toast.success(`Attached to "${hitFixed.title}"`);
-            return;
-          }
-        }
         // Squeeze flexible items to fit the dropped time (or fall back to next available slot).
+        // Dropping onto a fixed meeting nudges the new to-do to just after it.
         const slot = desiredStart
           ? await applySqueeze(desiredStart, duration)
           : findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
