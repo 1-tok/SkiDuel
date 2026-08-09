@@ -25,6 +25,7 @@ import EventModal from '@/components/kanban/EventModal';
 import LinkedInComposer from '@/components/LinkedInComposer';
 import SlackSettings from '@/components/slack/SlackSettings';
 import WeeklyTrendChart from '@/components/insights/WeeklyTrendChart';
+import Onboarding from '@/components/onboarding/Onboarding';
 
 const HOUR_HEIGHT = 60;
 function slotFromDropY(droppableId, clientY, durationMin) {
@@ -48,6 +49,7 @@ function slotFromDropY(droppableId, clientY, durationMin) {
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [followUpEvent, setFollowUpEvent] = useState(null);
+  const [onboarded, setOnboarded] = useState(null);
   const [celebration, setCelebration] = useState({ open: false, stats: null });
   const [ghosts, setGhosts] = useState([]);
   const [openEmail, setOpenEmail] = useState(null);
@@ -99,6 +101,11 @@ export default function Dashboard() {
   // Initial sync on mount
   useEffect(() => {
     handleSync();
+  }, []);
+
+  // Show the onboarding sequence for users who haven't completed it yet.
+  useEffect(() => {
+    base44.auth.me().then(u => setOnboarded(!!u?.onboarded)).catch(() => setOnboarded(true));
   }, []);
 
   // Request browser notification permission on entering the app
@@ -852,6 +859,10 @@ export default function Dashboard() {
       }
     }
   }, [emails, events, settings, createEvent, updateEvent, updateEmail, createAndPushEvent, applySqueeze, queryClient, triggerCelebration, selectedEmailIds, selectedEventIds]);
+
+  if (onboarded === false) {
+    return <Onboarding onComplete={() => setOnboarded(true)} />;
+  }
 
   return (
     <DragDropContext onDragStart={() => { suppressClickRef.current = true; }} onDragEnd={handleDragEnd}>
