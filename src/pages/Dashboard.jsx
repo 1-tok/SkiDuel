@@ -667,7 +667,7 @@ export default function Dashboard() {
       } else if (dest.droppableId.startsWith('kanban-')) {
         const column = dest.droppableId.replace('kanban-', '');
         const isTodayCol = column === 'doing';
-        const duration = isTodayCol ? 15 : (settings.default_event_duration ?? 10);
+        const duration = settings.default_event_duration ?? 10;
         const status = column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled';
         const searchFrom = new Date();
         if (column === 'todo') searchFrom.setDate(searchFrom.getDate() + 1);
@@ -755,8 +755,8 @@ export default function Dashboard() {
       } else if (destination.droppableId.startsWith('kanban-')) {
         const column = destination.droppableId.replace('kanban-', '');
         const isTodayCol = column === 'doing';
-        // Emails added to "Doing" book the next available 15-minute slot today.
-        const duration = isTodayCol ? 15 : (settings.default_event_duration ?? 10);
+        // Emails book the next available slot (default 10 minutes).
+        const duration = settings.default_event_duration ?? 10;
         // "To Do" holds future tasks: schedule starting tomorrow so the item stays in the To-Do
         // column (a today slot would roll it into Doing) and shows up on the calendar.
         const searchFrom = new Date();
