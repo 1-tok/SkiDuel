@@ -125,6 +125,10 @@ async function syncOneCalendarAccount(base44, accessToken, existingByGCalId, exi
       nextSyncToken = result.nextSyncToken;
     }
 
+    // Collect changes and persist in bulk — per-event writes hit the entity API rate
+    // limit when a calendar has many events, which aborts the whole sync.
+    const toCreate = [];
+    const toUpdate = [];
     for (const gcEvent of items) {
       const mapped = mapGCalEvent(gcEvent, calName, isShared, accountEmail);
       if (!mapped) continue;
@@ -137,13 +141,20 @@ async function syncOneCalendarAccount(base44, accessToken, existingByGCalId, exi
         if (existing.kanban_column !== 'done' && existing.kanban_column !== 'past') {
           update.kanban_column = kanbanForNew;
         }
-        await base44.asServiceRole.entities.CalendarEvent.update(existing.id, update);
-        updated++;
+        toUpdate.push({ id: existing.id, ...update });
       } else {
-        await base44.entities.CalendarEvent.create({ ...fields, kanban_column: kanbanForNew });
-        created++;
+        toCreate.push({ ...fields, kanban_column: kanbanForNew });
       }
     }
+
+    for (let i = 0; i < toCreate.length; i += 500) {
+      await base44.entities.CalendarEvent.bulkCreate(toCreate.slice(i, i + 500));
+    }
+    for (let i = 0; i < toUpdate.length; i += 500) {
+      await base44.asServiceRole.entities.CalendarEvent.bulkUpdate(toUpdate.slice(i, i + 500));
+    }
+    created += toCreate.length;
+    updated += toUpdate.length;
 
     if (nextSyncToken) {
       const now = new Date().toISOString();
@@ -166,13 +177,17 @@ Deno.serve(async (req) => {
 
     const existingEvents = await base44.asServiceRole.entities.CalendarEvent.list('-created_date', 500);
     const existingByGCalId = {};
+    const dupIds = [];
     for (const e of existingEvents) {
       if (!e.gcal_event_id) continue;
       if (existingByGCalId[e.gcal_event_id]) {
-        try { await base44.asServiceRole.entities.CalendarEvent.delete(e.id); } catch {}
+        dupIds.push(e.id);
       } else {
         existingByGCalId[e.gcal_event_id] = e;
       }
+    }
+    for (let i = 0; i < dupIds.length; i += 500) {
+      try { await base44.asServiceRole.entities.CalendarEvent.deleteMany({ id: { $in: dupIds.slice(i, i + 500) } }); } catch {}
     }
 
     const existingVis = await base44.asServiceRole.entities.CalendarVisibility.list('-created_date', 200);

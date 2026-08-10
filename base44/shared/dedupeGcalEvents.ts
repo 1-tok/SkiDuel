@@ -8,10 +8,12 @@ export async function dedupeGcalEvents(base44) {
     if (!e.gcal_event_id) continue;
     (byId[e.gcal_event_id] ||= []).push(e);
   }
+  const dupIds = [];
   for (const id in byId) {
     const group = byId[id].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
-    for (let i = 1; i < group.length; i++) {
-      try { await base44.asServiceRole.entities.CalendarEvent.delete(group[i].id); } catch {}
-    }
+    for (let i = 1; i < group.length; i++) dupIds.push(group[i].id);
+  }
+  for (let i = 0; i < dupIds.length; i += 500) {
+    try { await base44.asServiceRole.entities.CalendarEvent.deleteMany({ id: { $in: dupIds.slice(i, i + 500) } }); } catch {}
   }
 }
