@@ -472,7 +472,7 @@ export default function Dashboard() {
     const pool = excludeId ? events.filter(e => e.id !== excludeId) : events;
     let squeeze;
     try {
-      squeeze = computeSqueeze(pool, desiredStart, duration);
+      squeeze = computeSqueeze(pool, desiredStart, duration, settings);
     } catch (e) {
       console.error('computeSqueeze failed', e);
       const newEnd = new Date(desiredStart.getTime() + duration * 60000);
@@ -504,7 +504,7 @@ export default function Dashboard() {
     }
     if (squeeze.nudged) toast.message('Placed after a fixed meeting in that slot');
     return { start_time: squeeze.newStart, end_time: squeeze.newEnd, date: squeeze.date };
-  }, [events, queryClient]);
+  }, [events, settings, queryClient]);
 
   const handleCreateItem = useCallback(async (data) => {
     const today = new Date();

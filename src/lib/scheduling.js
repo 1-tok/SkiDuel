@@ -115,17 +115,32 @@ function evDur(e) {
   return Math.max(5, Math.round((evEnd(e) - evStart(e)) / 60000));
 }
 
-// Squeezes a new item of `durationMin` into `targetStart`, shifting later flexible
-// items to make room. Fixed (non-flexible) events are immovable barriers — the new
-// item and any shifted flexible items are nudged past them instead of overwriting.
-// Returns { newStart, newEnd, date, updates: [{id,start_time,end_time,date}], nudged }.
-export function computeSqueeze(allEvents, targetStart, durationMin) {
+// Squeezes a new item of `durationMin` into `targetStart`. Fixed (non-flexible) events
+// are immovable barriers: the new item is cut to fit before the next fixed meeting and,
+// when there's no room, nudged past it. Flexible items the new item overlaps are first
+// *shaved* (their start moves later, keeping their end) to make room in place; if a
+// shave would shrink a flexible item below the minimum length it is shifted later
+// instead, cascading past fixed meetings. Returns
+// { newStart, newEnd, date, updates: [{id,start_time,end_time,date}], nudged }.
+export function computeSqueeze(allEvents, targetStart, durationMin, settings = {}) {
   const day = targetStart;
-  const dayEvents = allEvents.filter(e => e.start_time && isSameDay(parseISO(e.start_time), day));
-  const fixed = dayEvents
-    .filter(e => !isFlexibleEvent(e))
-    .map(e => ({ s: evStart(e), e: evEnd(e) }))
+  const workStartHour = settings.work_start_hour ?? 9;
+  const workEndHour = settings.work_end_hour ?? 18;
+  const MIN_ITEM = 5;
+
+  const minTo = (d) => d.getHours() * 60 + d.getMinutes();
+
+  const dayEvents = allEvents
+    .filter(e => e.start_time && isSameDay(parseISO(e.start_time), day))
+    .map(e => {
+      const s = evStart(e), en = evEnd(e);
+      return { id: e.id, s, e: en, dur: Math.max(MIN_ITEM, Math.round((en - s) / 60000)), flex: isFlexibleEvent(e) };
+    })
     .sort((a, b) => a.s - b.s);
+
+  const fixed = dayEvents.filter(e => !e.flex);
+  const workStart = setMinutes(setHours(startOfDay(day), workStartHour), 0);
+  const workEnd = setMinutes(setHours(startOfDay(day), workEndHour), 0);
 
   const pushPastFixed = (start, dur) => {
     let s = new Date(start);
@@ -137,32 +152,65 @@ export function computeSqueeze(allEvents, targetStart, durationMin) {
     return s;
   };
 
-  // If a fixed meeting occupies the desired slot, nudge the new item to start after it.
-  let newStart = new Date(targetStart);
-  let nudged = false;
-  for (let g = 0; g < 50; g++) {
-    const blocker = fixed.find(f => f.s < addMinutes(newStart, durationMin) && f.e > newStart);
-    if (!blocker) break;
-    newStart = new Date(blocker.e);
-    nudged = true;
-  }
-  const newEnd = addMinutes(newStart, durationMin);
+  // Nudge the new item past any fixed meeting that covers the desired slot.
+  let newStart = pushPastFixed(targetStart, durationMin);
+  let nudged = newStart > targetStart;
+  if (newStart < workStart) newStart = new Date(workStart);
 
-  const flexible = dayEvents
-    .filter(e => isFlexibleEvent(e))
-    .map(e => ({ s: evStart(e), e: evEnd(e), dur: evDur(e), id: e.id }))
-    .sort((a, b) => a.s - b.s);
+  // Hard ceiling: the next fixed meeting after newStart (or the end of the work day).
+  // Fixed meetings can't be moved, so the new item is cut to fit before it.
+  let ceil = new Date(workEnd);
+  for (const f of fixed) { if (f.s >= newStart && f.s < ceil) ceil = new Date(f.s); }
 
   const updates = [];
-  let occupiedEnd = newEnd;
-  for (const it of flexible) {
-    if (it.e <= newStart) continue;     // entirely before the new item — leave it
-    if (it.s >= occupiedEnd) break;      // gap reached — no further cascade
-    // Collides with the new item (or a shifted predecessor) → shift later, around fixed meetings.
-    const slotStart = pushPastFixed(occupiedEnd, it.dur);
-    const slotEnd = addMinutes(slotStart, it.dur);
-    updates.push({ id: it.id, start_time: slotStart.toISOString(), end_time: slotEnd.toISOString(), date: format(slotStart, 'yyyy-MM-dd') });
-    occupiedEnd = slotEnd;
+
+  // If newStart lands inside a flexible item (dropped on top of its tail), shave that
+  // item's tail to newStart so the new item can occupy the spot.
+  const overlapPrev = dayEvents.find(ev => ev.flex && ev.s < newStart && ev.e > newStart);
+  if (overlapPrev) {
+    updates.push({ id: overlapPrev.id, start_time: overlapPrev.s.toISOString(), end_time: newStart.toISOString(), date: format(overlapPrev.s, 'yyyy-MM-dd') });
+  }
+
+  // Cut the new item so it never crosses the next fixed meeting.
+  let newDur = Math.min(durationMin, Math.max(0, minTo(ceil) - minTo(newStart)));
+  let newEnd = addMinutes(newStart, newDur);
+
+  // Shave / shift flexible items the new item overlaps so it fits in place, cascading
+  // later flexible items only when a shave would shrink one below the minimum length.
+  const flexAfter = dayEvents
+    .filter(ev => ev.flex && ev !== overlapPrev && minTo(ev.e) > minTo(newStart))
+    .sort((a, b) => a.s - b.s);
+
+  let cursor = new Date(newEnd);
+  for (const f of flexAfter) {
+    if (minTo(f.s) >= minTo(cursor)) break; // gap reached — no further cascade
+    const fDur = minTo(f.e) - minTo(f.s);
+    const shave = minTo(cursor) - minTo(f.s);
+    if (shave > 0 && fDur - shave >= MIN_ITEM) {
+      // Shave f's front: it starts at the cursor, keeping its end. No cascade needed.
+      updates.push({ id: f.id, start_time: cursor.toISOString(), end_time: f.e.toISOString(), date: format(cursor, 'yyyy-MM-dd') });
+      cursor = new Date(f.e);
+    } else {
+      // Can't shave enough — shift f later (preserve duration), past fixed meetings.
+      let fs = pushPastFixed(cursor, f.dur);
+      let fe = addMinutes(fs, f.dur);
+      // If the shift crosses the next fixed meeting, shave f to fit before it instead.
+      let nf = new Date(workEnd);
+      for (const fx of fixed) { if (fx.s >= fs && fx.s < nf) nf = new Date(fx.s); }
+      if (minTo(fe) > minTo(nf) && minTo(nf) - minTo(fs) >= MIN_ITEM) fe = new Date(nf);
+      updates.push({ id: f.id, start_time: fs.toISOString(), end_time: fe.toISOString(), date: format(fs, 'yyyy-MM-dd') });
+      cursor = fe;
+    }
+  }
+
+  // No room at all before the next fixed meeting — nudge the new item after it.
+  if (newDur < MIN_ITEM) {
+    newStart = new Date(ceil);
+    nudged = true;
+    let ceil2 = new Date(workEnd);
+    for (const f of fixed) { if (f.s >= newStart && f.s < ceil2) ceil2 = new Date(f.s); }
+    newDur = Math.min(durationMin, Math.max(MIN_ITEM, minTo(ceil2) - minTo(newStart)));
+    newEnd = addMinutes(newStart, newDur);
   }
 
   return { newStart: newStart.toISOString(), newEnd: newEnd.toISOString(), date: format(newStart, 'yyyy-MM-dd'), updates, nudged };
