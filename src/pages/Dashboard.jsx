@@ -17,7 +17,8 @@ import KanbanPanel from '@/components/kanban/KanbanPanel';
 import ScheduleView from '@/components/schedule/ScheduleView';
 import FollowUpModal from '@/components/FollowUpModal';
 import CelebrationOverlay from '@/components/CelebrationOverlay';
-import CalendarFilter from '@/components/calendar/CalendarFilter';
+import AccountMenu from '@/components/AccountMenu';
+import SyncIntegrationsModal from '@/components/gmail/SyncIntegrationsModal';
 import ThemeToggle from '@/components/ThemeToggle';
 import InsightsPanel from '@/components/insights/InsightsPanel';
 import SearchBar from '@/components/SearchBar';
@@ -57,6 +58,7 @@ export default function Dashboard() {
   const [addState, setAddState] = useState(null);
   const [linkedinOpen, setLinkedinOpen] = useState(false);
   const [slackOpen, setSlackOpen] = useState(false);
+  const [integrationsOpen, setIntegrationsOpen] = useState(false);
   const [showTrend, setShowTrend] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [searchEvent, setSearchEvent] = useState(null);
@@ -926,7 +928,6 @@ export default function Dashboard() {
               <BarChart3 className="w-3.5 h-3.5" />
               Trends
             </Button>
-            <CalendarFilter visibility={visibility} events={events} />
             <Button variant="outline" size="sm" onClick={handleSync} disabled={syncing} className="h-7 gap-1.5 text-xs">
               <RefreshCw className={`w-3 h-3 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing…' : 'Sync'}
@@ -939,6 +940,7 @@ export default function Dashboard() {
               <Bell className="w-3.5 h-3.5" />
             </button>
             <ThemeToggle />
+            <AccountMenu visibility={visibility} events={events} onOpenCommunications={() => setIntegrationsOpen(true)} />
           </div>
         </div>
         {showTrend && screen !== 'insights' && <WeeklyTrendChart events={events} />}
@@ -954,11 +956,6 @@ export default function Dashboard() {
           onSchedule={handleScheduleEmail}
           onOpen={handleOpenEmail}
           onDelete={handleDeleteEmail}
-          mailAccounts={mailAccounts}
-          calendarAccounts={calendarAccounts}
-          slackConnected
-          slackChannelName={settings.slack_channel_name}
-          onConfigureSlack={() => setSlackOpen(true)}
           selectedIds={selectedEmailIds}
           onToggleSelect={toggleEmailSelect}
           onSelectAll={setEmailSelection}
@@ -1032,6 +1029,16 @@ export default function Dashboard() {
       <LinkedInComposer open={linkedinOpen} onClose={() => setLinkedinOpen(false)} />
 
       <SlackSettings open={slackOpen} onClose={() => setSlackOpen(false)} settings={settings} onSaved={() => queryClient.invalidateQueries({ queryKey: ['settings'] })} />
+
+      <SyncIntegrationsModal
+        open={integrationsOpen}
+        onClose={() => setIntegrationsOpen(false)}
+        mailAccounts={mailAccounts}
+        calendarAccounts={calendarAccounts}
+        slackConnected
+        slackChannelName={settings.slack_channel_name}
+        onConfigureSlack={() => { setIntegrationsOpen(false); setSlackOpen(true); }}
+      />
 
       <CelebrationOverlay
         open={celebration.open}

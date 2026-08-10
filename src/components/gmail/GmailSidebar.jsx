@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import { Mail, Inbox, Settings, Trash2, Calendar, Check, X } from 'lucide-react';
+import { Mail, Inbox, Trash2, Calendar, Check, X } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import EmailCard from './EmailCard';
-import SyncIntegrationsModal from './SyncIntegrationsModal';
 import { Draggable, Droppable } from '@hello-pangea/dnd';
 
 export default function GmailSidebar({
-  emails, onMarkRead, onSchedule, onOpen, onDelete, mailAccounts = [], calendarAccounts = [],
+  emails, onMarkRead, onSchedule, onOpen, onDelete,
   selectedIds, onToggleSelect, onSelectAll, onBulkDelete, onBulkSchedule, onBulkDone,
-  slackConnected = false, slackChannelName, onConfigureSlack,
 }) {
   const [showRead, setShowRead] = useState(false);
-  const [integrationsOpen, setIntegrationsOpen] = useState(false);
 
   const visibleEmails = showRead ? emails : emails.filter(e => !e.is_read && !e.is_actioned);
   const selected = selectedIds || new Set();
@@ -35,13 +32,7 @@ export default function GmailSidebar({
                 {visibleEmails.length}
               </span>
             )}
-            <button
-              onClick={() => setIntegrationsOpen(true)}
-              className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title="Sync integrations"
-            >
-              <Settings className="w-3.5 h-3.5" />
-            </button>
+
           </div>
         </div>
         <div className="flex items-center justify-between gap-2">
@@ -125,15 +116,6 @@ export default function GmailSidebar({
         )}
       </Droppable>
 
-      <SyncIntegrationsModal
-        open={integrationsOpen}
-        onClose={() => setIntegrationsOpen(false)}
-        mailAccounts={mailAccounts}
-        calendarAccounts={calendarAccounts}
-        slackConnected={slackConnected}
-        slackChannelName={slackChannelName}
-        onConfigureSlack={() => { setIntegrationsOpen(false); onConfigureSlack?.(); }}
-      />
     </div>
   );
 }
