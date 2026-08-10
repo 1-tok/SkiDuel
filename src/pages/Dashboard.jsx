@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 
 import GmailSidebar from '@/components/gmail/GmailSidebar';
+import TemplatesStrip from '@/components/TemplatesStrip';
+import { TEMPLATES } from '@/lib/templates';
 import EmailModal from '@/components/gmail/EmailModal';
 import AddItemModal from '@/components/AddItemModal';
 import CalendarPanel from '@/components/calendar/CalendarPanel';
@@ -756,6 +758,60 @@ export default function Dashboard() {
       return;
     }
 
+    if (draggableId.startsWith('template-')) {
+      const templateId = draggableId.replace('template-', '');
+      const template = TEMPLATES.find(t => t.id === templateId);
+      if (!template) return;
+      const duration = template.duration ?? settings.default_event_duration ?? 10;
+
+      const templateEventData = (slot, column, status) => ({
+        title: template.title,
+        description: '',
+        start_time: slot.start_time,
+        end_time: slot.end_time,
+        date: slot.date,
+        duration_minutes: duration,
+        source: 'manual',
+        kanban_column: column,
+        color: template.color || 'blue',
+        status,
+        flexible: true,
+      });
+
+      if (destination.droppableId.startsWith('calendar-')) {
+        const targetDate = destination.droppableId.replace('calendar-', '');
+        const dropSlot = slotFromDropY(destination.droppableId, dragPosRef.current.y, duration);
+        const desiredStart = dropSlot ? parseISO(dropSlot.start_time) : null;
+        const slot = desiredStart
+          ? await applySqueeze(desiredStart, duration)
+          : findNextAvailableSlot(events, new Date(targetDate), settings, isSameDay(new Date(targetDate), today));
+        if (!slot) return;
+        const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
+        const data = templateEventData(slot, column, 'scheduled');
+        const ghostId = `ghost-${Date.now()}`;
+        setGhosts(prev => [...prev, { id: ghostId, ...data, isGhost: true }]);
+        try { await createEvent.mutateAsync(data); } finally { setGhosts(prev => prev.filter(g => g.id !== ghostId)); }
+      } else if (destination.droppableId.startsWith('kanban-')) {
+        const column = destination.droppableId.replace('kanban-', '');
+        const isTodayCol = column === 'doing';
+        const searchFrom = new Date();
+        if (column === 'todo') searchFrom.setDate(searchFrom.getDate() + 1);
+        const slot = findNextAvailableSlot(events, searchFrom, { ...settings, default_event_duration: duration }, isTodayCol);
+        if (!slot) return;
+        const status = column === 'done' ? 'completed' : column === 'past' ? 'cancelled' : 'scheduled';
+        await createEvent.mutateAsync(templateEventData(slot, column, status));
+      } else if (destination.droppableId === 'schedule') {
+        const slot = findNextAvailableSlot(events, today, { ...settings, default_event_duration: duration }, true) || findNextAvailableSlot(events, today, { ...settings, default_event_duration: duration });
+        if (!slot) return;
+        const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
+        const data = templateEventData(slot, column, 'scheduled');
+        const ghostId = `ghost-${Date.now()}`;
+        setGhosts(prev => [...prev, { id: ghostId, ...data, isGhost: true }]);
+        try { await createEvent.mutateAsync(data); } finally { setGhosts(prev => prev.filter(g => g.id !== ghostId)); }
+      }
+      return;
+    }
+
     if (draggableId.startsWith('event-')) {
       const eventId = draggableId.replace('event-', '');
       const event = events.find(e => e.id === eventId);
@@ -950,19 +1006,24 @@ export default function Dashboard() {
           ) : (
           <PanelGroup direction="horizontal" className="h-full">
         <Panel defaultSize={22} minSize={14} maxSize={45} className="min-w-0">
-        <GmailSidebar
-          emails={emails}
-          onMarkRead={handleMarkRead}
-          onSchedule={handleScheduleEmail}
-          onOpen={handleOpenEmail}
-          onDelete={handleDeleteEmail}
-          selectedIds={selectedEmailIds}
-          onToggleSelect={toggleEmailSelect}
-          onSelectAll={setEmailSelection}
-          onBulkDelete={bulkArchiveEmails}
-          onBulkSchedule={bulkScheduleEmails}
-          onBulkDone={bulkDoneEmails}
-        />
+        <div className="flex flex-col h-full min-h-0">
+          <TemplatesStrip />
+          <div className="flex-1 min-h-0">
+            <GmailSidebar
+              emails={emails}
+              onMarkRead={handleMarkRead}
+              onSchedule={handleScheduleEmail}
+              onOpen={handleOpenEmail}
+              onDelete={handleDeleteEmail}
+              selectedIds={selectedEmailIds}
+              onToggleSelect={toggleEmailSelect}
+              onSelectAll={setEmailSelection}
+              onBulkDelete={bulkArchiveEmails}
+              onBulkSchedule={bulkScheduleEmails}
+              onBulkDone={bulkDoneEmails}
+            />
+          </div>
+        </div>
         </Panel>
         <PanelResizeHandle className="w-1.5 bg-border hover:bg-primary/30 transition-colors cursor-col-resize data-[resize-handle-state=drag]:bg-primary/50" />
         <Panel defaultSize={78} className="min-w-0">
