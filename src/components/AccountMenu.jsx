@@ -124,7 +124,7 @@ export default function AccountMenu({ visibility, events, onOpenCommunications }
           ))}
         </div>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => logout()} className="text-destructive focus:text-destructive">
+        <DropdownMenuItem onClick={() => base44.auth.logout('/')} className="text-destructive focus:text-destructive">
           <LogOut className="w-3.5 h-3.5" />
           Log out
         </DropdownMenuItem>
