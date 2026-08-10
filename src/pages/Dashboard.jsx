@@ -47,6 +47,36 @@ function slotFromDropY(droppableId, clientY, durationMin) {
   return { start_time: start.toISOString(), end_time: end.toISOString(), date: targetDate };
 }
 
+// Maps a schedule-list drop (viewport Y) to a desired start time: the end time of the
+// item just above the drop point, so the new item inserts between the two cards rather
+// than jumping to the next free slot.
+function startFromScheduleDrop(events, clientY) {
+  const cards = Array.from(document.querySelectorAll('[data-schedule-item]'));
+  if (!cards.length || clientY == null) return null;
+  let idx = cards.length;
+  for (let i = 0; i < cards.length; i++) {
+    const rect = cards[i].getBoundingClientRect();
+    if (clientY < rect.top + rect.height / 2) { idx = i; break; }
+  }
+  const now = new Date();
+  const upcoming = events
+    .filter(e => e && e.start_time)
+    .filter(e => { const d = parseISO(e.start_time); return isSameDay(d, now) || d >= now; })
+    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  const preceding = idx > 0 ? upcoming[idx - 1] : null;
+  const following = upcoming[idx] || null;
+  if (preceding) {
+    let start = new Date(preceding.end_time || preceding.start_time);
+    if (start < now) start = now;
+    return start;
+  }
+  if (following) {
+    const fStart = new Date(following.start_time);
+    return now < fStart ? now : new Date(fStart.getTime() - 10 * 60000);
+  }
+  return now;
+}
+
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [followUpEvent, setFollowUpEvent] = useState(null);
@@ -737,10 +767,13 @@ export default function Dashboard() {
         await createEvent.mutateAsync(emailEventData(email, slot, column, status, duration));
         updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
       } else if (destination.droppableId === 'schedule') {
-        // Schedule is a chronological list — place the email at the next available slot today
-        // (so it lands in the Today group where it's dropped), falling back to the next available
-        // day if today is full.
-        const slot = findNextAvailableSlot(events, today, settings, true) || findNextAvailableSlot(events, today, settings);
+        // Schedule is a chronological list — insert the email at the position it was dropped
+        // (between the two items there), squeezing following flexible items to make room.
+        const duration = settings.default_event_duration ?? 10;
+        const desiredStart = startFromScheduleDrop(events, dragPosRef.current.y);
+        const slot = desiredStart
+          ? await applySqueeze(desiredStart, duration)
+          : (findNextAvailableSlot(events, today, settings, true) || findNextAvailableSlot(events, today, settings));
         if (!slot) return;
         const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
         const data = emailEventData(email, slot, column, 'scheduled');
