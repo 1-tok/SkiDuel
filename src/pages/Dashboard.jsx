@@ -295,7 +295,8 @@ export default function Dashboard() {
   const handleUpdateEvent = useCallback(async (event, updates) => {
     try {
       await updateEvent.mutateAsync({ id: event.id, data: updates });
-      if (event.gcal_event_id && (updates.title || updates.description || updates.start_time || updates.end_time || updates.attachments)) {
+      const hasAttachments = updates.attachments !== undefined;
+      if (event.gcal_event_id && (updates.title || updates.description || updates.start_time || updates.end_time || hasAttachments)) {
         try {
           await base44.functions.invoke('updateGCalEvent', {
             gcal_event_id: event.gcal_event_id,
@@ -303,16 +304,42 @@ export default function Dashboard() {
             description: updates.description ?? event.description ?? '',
             start_time: updates.start_time ?? event.start_time,
             end_time: updates.end_time ?? event.end_time,
-            ...(updates.attachments !== undefined ? { attachments: updates.attachments } : {}),
+            ...(hasAttachments ? { attachments: updates.attachments } : {}),
           });
         } catch (e) {
           toast.error('Google Calendar sync failed: ' + (e?.message || e));
+        }
+      } else if (!event.gcal_event_id && !event.is_shared_calendar && hasAttachments && (updates.attachments || []).length > 0) {
+        // Item isn't in Google Calendar yet — create the associated GCal event so the
+        // attachments are mirrored and ready for the meeting.
+        try {
+          const res = await base44.functions.invoke('createCalendarEvent', {
+            title: updates.title ?? event.title,
+            description: updates.description ?? event.description ?? '',
+            start_time: updates.start_time ?? event.start_time,
+            end_time: updates.end_time ?? event.end_time,
+            attachments: updates.attachments,
+          });
+          if (res?.gcal_event_id) {
+            await base44.entities.CalendarEvent.update(event.id, {
+              gcal_event_id: res.gcal_event_id,
+              source: 'google_calendar',
+              calendar_name: 'primary',
+            });
+            try {
+              const dups = await base44.entities.CalendarEvent.filter({ gcal_event_id: res.gcal_event_id });
+              await Promise.all(dups.filter(d => d.id !== event.id).map(d => base44.entities.CalendarEvent.delete(d.id)));
+            } catch {}
+            queryClient.invalidateQueries({ queryKey: ['events'] });
+          }
+        } catch (e) {
+          toast.error('Could not add to Google Calendar: ' + (e?.message || e));
         }
       }
     } catch (e) {
       toast.error('Update failed: ' + (e?.message || e));
     }
-  }, [updateEvent]);
+  }, [updateEvent, queryClient]);
 
   const handleScheduleEmail = useCallback((email) => {
     const today = new Date();
