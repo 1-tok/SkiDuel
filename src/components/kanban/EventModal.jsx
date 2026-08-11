@@ -16,7 +16,6 @@ const statusLabels = {
   cancelled: { label: 'Cancelled', className: 'bg-red-100 text-red-700' },
   needs_followup: { label: 'Needs Follow-up', className: 'bg-orange-100 text-orange-700' },
 };
-
 const columnLabels = { todo: 'To Do', doing: 'Doing', done: 'Done', past: 'Past' };
 const statusOptions = [
   { value: 'scheduled', label: 'Scheduled' },
@@ -39,7 +38,6 @@ function toLocalInput(dateIso) {
 }
 
 export default function EventModal({ event, open, onClose, onDelete, onUpdate }) {
-  const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [sourceEmail, setSourceEmail] = useState(null);
@@ -47,7 +45,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
   const [loadingEmail, setLoadingEmail] = useState(false);
 
   useEffect(() => {
-    if (!open || !event) { setEditing(false); setForm(null); return; }
+    if (!open || !event) { setForm(null); return; }
     const s = toLocalInput(event.start_time);
     const e = toLocalInput(event.end_time);
     setForm({
@@ -61,7 +59,6 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
       kanban_column: event.kanban_column || 'doing',
       attachments: (event.attachments || []).map(a => ({ file_url: a.file_url, title: a.title })),
     });
-    setEditing(false);
   }, [open, event]);
 
   useEffect(() => {
@@ -112,7 +109,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
       attachments: form.attachments,
     };
     if (onUpdate) await onUpdate(event, updates);
-    setEditing(false);
+    onClose?.();
   };
 
   const handleAddAttachment = async (e) => {
@@ -138,7 +135,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
         <DialogHeader>
           <div className="flex items-start gap-3 pr-6">
             <div className={`w-3 h-3 rounded-full ${colors.dot} mt-1.5 flex-shrink-0`} />
-            {editing ? (
+            {canEdit ? (
               <Input value={form.title} onChange={(e) => set('title', e.target.value)} className="text-base font-semibold h-8" />
             ) : (
               <DialogTitle className="text-base leading-snug">{event.title}</DialogTitle>
@@ -147,8 +144,8 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
         </DialogHeader>
 
         <div className="space-y-3 mt-1 max-h-[68vh] overflow-y-auto pr-1">
-          {/* Time / date editing */}
-          {editing ? (
+          {/* Time / date */}
+          {canEdit ? (
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="text-[10px] text-muted-foreground">Date</label>
@@ -175,8 +172,8 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
             )
           )}
 
-          {/* Status / column / color when editing */}
-          {editing && (
+          {/* Status / column / color */}
+          {canEdit && (
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <label className="text-[10px] text-muted-foreground">Status</label>
@@ -199,8 +196,8 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
             </div>
           )}
 
-          {/* Read-only badges */}
-          {!editing && (
+          {/* Read-only badges (non-editable items) */}
+          {!canEdit && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.className}`}>{status.label}</span>
               {event.kanban_column && (
@@ -221,6 +218,8 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
               <span>{event.calendar_name}{event.source_account ? ` · ${event.source_account}` : ''}</span>
             </div>
           )}
+
+          {/* Source email (child) */}
           {sourceEmail ? (
             <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
               <div className="flex items-center gap-2">
@@ -241,7 +240,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
           )}
 
           {/* Description */}
-          {editing ? (
+          {canEdit ? (
             <div>
               <label className="text-[10px] text-muted-foreground flex items-center gap-1 mb-1">
                 <FileText className="w-3 h-3" /> Description
@@ -257,40 +256,32 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
             )
           )}
 
-          {/* Attachments */}
-          <div className="space-y-1.5">
-            <label className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Paperclip className="w-3 h-3" /> Attachments
-            </label>
-            <div className="space-y-1">
-              {(form.attachments || []).map((a, idx) => (
-                <div key={idx} className="flex items-center gap-2 text-xs">
-                  <a href={a.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-primary hover:underline truncate flex-1">
-                    <FileText className="w-3 h-3 flex-shrink-0" />
-                    <span className="truncate">{a.title}</span>
-                  </a>
-                  {editing && (
-                    <button type="button" onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, i) => i !== idx) }))} className="text-muted-foreground hover:text-destructive">
-                      <X className="w-3 h-3" />
-                    </button>
-                  )}
-                </div>
-              ))}
-              {editing && (
-                <label className="flex items-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
-                  <Paperclip className="w-3 h-3" />
-                  {uploading ? 'Uploading…' : 'Add file'}
-                  <input type="file" className="hidden" onChange={handleAddAttachment} disabled={uploading} />
-                </label>
-              )}
-              {!editing && (!form.attachments || form.attachments.length === 0) && (
-                <span className="text-xs text-muted-foreground">No attachments</span>
-              )}
-            </div>
+          {/* Attachments — no label, just files + Add file link */}
+          <div className="space-y-1">
+            {(form.attachments || []).map((a, idx) => (
+              <div key={idx} className="flex items-center gap-2 text-xs">
+                <a href={a.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-primary hover:underline truncate flex-1">
+                  <FileText className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{a.title}</span>
+                </a>
+                {canEdit && (
+                  <button type="button" onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, i) => i !== idx) }))} className="text-muted-foreground hover:text-destructive">
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ))}
+            {canEdit && (
+              <label className="flex items-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
+                <Paperclip className="w-3 h-3" />
+                {uploading ? 'Uploading…' : 'Add file'}
+                <input type="file" className="hidden" onChange={handleAddAttachment} disabled={uploading} />
+              </label>
+            )}
           </div>
 
           {/* Follow-up note */}
-          {event.followup_note && !editing && (
+          {event.followup_note && (
             <div className="rounded-lg bg-orange-50 border border-orange-200 p-3">
               <p className="text-xs font-medium text-orange-700 mb-1">Follow-up note</p>
               <RichText content={event.followup_note} className="text-sm text-orange-800" />
@@ -300,15 +291,8 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
 
         {/* Footer */}
         <div className="flex items-center gap-2 pt-3 border-t border-border mt-2">
-          {editing ? (
-            <>
-              <Button size="sm" className="gap-1.5" onClick={handleSave}><Save className="w-4 h-4" /> Save</Button>
-              <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
-            </>
-          ) : (
-            canEdit && (
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setEditing(true)}>Edit</Button>
-            )
+          {canEdit && (
+            <Button size="sm" className="gap-1.5" onClick={handleSave}><Save className="w-4 h-4" /> Save</Button>
           )}
           {onDelete && !event.is_shared_calendar && (
             <button
