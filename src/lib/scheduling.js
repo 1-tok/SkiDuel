@@ -164,11 +164,26 @@ export function computeSqueeze(allEvents, targetStart, durationMin, settings = {
 
   const updates = [];
 
-  // If newStart lands inside a flexible item (dropped on top of its tail), shave that
-  // item's tail to newStart so the new item can occupy the spot.
+  // If newStart lands inside a flexible item (dropped on top of its tail), first try
+  // to shift that item earlier to preserve its duration; only when there isn't room
+  // before it do we compress its tail to newStart. This keeps the previous item intact
+  // instead of shrinking it or bumping following items to later slots.
   const overlapPrev = dayEvents.find(ev => ev.flex && ev.s < newStart && ev.e > newStart);
   if (overlapPrev) {
-    updates.push({ id: overlapPrev.id, start_time: overlapPrev.s.toISOString(), end_time: newStart.toISOString(), date: format(overlapPrev.s, 'yyyy-MM-dd') });
+    const overlap = minTo(overlapPrev.e) - minTo(newStart); // minutes eaten off the tail
+    const priorEnd = dayEvents
+      .filter(ev => ev !== overlapPrev && minTo(ev.e) <= minTo(overlapPrev.s))
+      .reduce((mx, ev) => Math.max(mx, minTo(ev.e)), minTo(workStart));
+    const gapBefore = minTo(overlapPrev.s) - priorEnd;
+    if (gapBefore >= overlap) {
+      // Shift the previous item earlier by the overlap, preserving its duration.
+      const ns = addMinutes(overlapPrev.s, -overlap);
+      const ne = addMinutes(overlapPrev.e, -overlap);
+      updates.push({ id: overlapPrev.id, start_time: ns.toISOString(), end_time: ne.toISOString(), date: format(ns, 'yyyy-MM-dd') });
+    } else {
+      // No room earlier — compress the previous item's tail to make space in place.
+      updates.push({ id: overlapPrev.id, start_time: overlapPrev.s.toISOString(), end_time: newStart.toISOString(), date: format(overlapPrev.s, 'yyyy-MM-dd') });
+    }
   }
 
   // Cut the new item so it never crosses the next fixed meeting.
