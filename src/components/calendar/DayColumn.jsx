@@ -49,6 +49,11 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
   const eventLayouts = getEventLayouts(ownEvents);
   const sharedLayouts = getEventLayouts(sharedEvents);
 
+  // Keep appointments wide enough to read. When only a couple overlap, split the
+  // column evenly (still wide). When many overlap, hold each at a readable minimum
+  // width and cascade them left-to-right so every title's start stays visible
+  // instead of squeezing into thin slivers.
+  const MIN_W = 46;
   const getEventStyle = (event, col, totalCols) => {
     const start = parseISO(event.start_time);
     const end = parseISO(event.end_time);
@@ -56,8 +61,18 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
     const endMinutes = end.getHours() * 60 + end.getMinutes();
     const top = (startMinutes / 60) * HOUR_HEIGHT;
     const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 56);
-    const width = totalCols > 1 ? `${100 / totalCols}%` : 'calc(100% - 8px)';
-    const left = totalCols > 1 ? `${(col / totalCols) * 100}%` : '4px';
+    let width, left;
+    if (totalCols <= 1) {
+      width = 'calc(100% - 8px)';
+      left = '4px';
+    } else if (100 / totalCols >= MIN_W) {
+      width = `${100 / totalCols}%`;
+      left = `${(col / totalCols) * 100}%`;
+    } else {
+      width = `${MIN_W}%`;
+      const step = (100 - MIN_W) / (totalCols - 1);
+      left = `${col * step}%`;
+    }
     return { top: `${top}px`, height: `${height}px`, width, left };
   };
 
@@ -215,8 +230,8 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
                     key={event.id}
                     data-event-card
                     onMouseDown={(e) => handleEventMouseDown(e, event)}
-                    style={{ ...style, top, zIndex: isDraggingThis ? 50 : 10 }}
-                    className={`absolute transition-none ${isDraggingThis ? 'opacity-80 shadow-xl ring-2 ring-primary/30 rounded-lg' : ''}`}
+                    style={{ ...style, top, zIndex: isDraggingThis ? 50 : 10 + col }}
+                    className={`absolute transition-none shadow-sm ${isDraggingThis ? 'opacity-80 shadow-xl ring-2 ring-primary/30 rounded-lg' : ''}`}
                   >
                     <CalendarEvent event={event} isDragging={isDraggingThis} onDelete={onDeleteEvent} style={{ position: 'relative', left: 0, right: 0, width: '100%', height: '100%' }} />
                   </div>
