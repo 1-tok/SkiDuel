@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Mail, Clock, Calendar, FileText, Trash2, Save } from 'lucide-react';
+import { Mail, Clock, Calendar, FileText, Trash2, Save, Paperclip, X } from 'lucide-react';
+import { base44 } from '@/api/base44Client';
+import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -39,6 +41,7 @@ function toLocalInput(dateIso) {
 export default function EventModal({ event, open, onClose, onDelete, onUpdate }) {
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (!open || !event) { setEditing(false); setForm(null); return; }
@@ -53,6 +56,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
       status: event.status || 'scheduled',
       color: event.color || 'blue',
       kanban_column: event.kanban_column || 'doing',
+      attachments: (event.attachments || []).map(a => ({ file_url: a.file_url, title: a.title })),
     });
     setEditing(false);
   }, [open, event]);
@@ -79,9 +83,25 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
       status: form.status,
       color: form.color,
       kanban_column: form.kanban_column,
+      attachments: form.attachments,
     };
     if (onUpdate) await onUpdate(event, updates);
     setEditing(false);
+  };
+
+  const handleAddAttachment = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const res = await base44.integrations.Core.UploadFile({ file });
+      setForm(f => ({ ...f, attachments: [...(f.attachments || []), { file_url: res.file_url, title: file.name }] }));
+    } catch (err) {
+      toast.error('Upload failed');
+    } finally {
+      setUploading(false);
+      e.target.value = '';
+    }
   };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
@@ -198,6 +218,38 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
               </div>
             )
           )}
+
+          {/* Attachments */}
+          <div className="space-y-1.5">
+            <label className="text-[10px] text-muted-foreground flex items-center gap-1">
+              <Paperclip className="w-3 h-3" /> Attachments
+            </label>
+            <div className="space-y-1">
+              {(form.attachments || []).map((a, idx) => (
+                <div key={idx} className="flex items-center gap-2 text-xs">
+                  <a href={a.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-primary hover:underline truncate flex-1">
+                    <FileText className="w-3 h-3 flex-shrink-0" />
+                    <span className="truncate">{a.title}</span>
+                  </a>
+                  {editing && (
+                    <button type="button" onClick={() => setForm(f => ({ ...f, attachments: f.attachments.filter((_, i) => i !== idx) }))} className="text-muted-foreground hover:text-destructive">
+                      <X className="w-3 h-3" />
+                    </button>
+                  )}
+                </div>
+              ))}
+              {editing && (
+                <label className="flex items-center gap-1.5 text-xs text-primary cursor-pointer hover:underline">
+                  <Paperclip className="w-3 h-3" />
+                  {uploading ? 'Uploading…' : 'Add file'}
+                  <input type="file" className="hidden" onChange={handleAddAttachment} disabled={uploading} />
+                </label>
+              )}
+              {!editing && (!form.attachments || form.attachments.length === 0) && (
+                <span className="text-xs text-muted-foreground">No attachments</span>
+              )}
+            </div>
+          </div>
 
           {/* Follow-up note */}
           {event.followup_note && !editing && (

@@ -107,6 +107,24 @@
       },
       "default": [],
       "description": "Display names of people invited to this meeting (synced from Google Calendar)"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file_url": {
+            "type": "string",
+            "description": "URL of the attached file"
+          },
+          "title": {
+            "type": "string",
+            "description": "Display name of the attached file"
+          }
+        }
+      },
+      "default": [],
+      "description": "Files attached to this event; mirrored to Google Calendar as event attachments"
     }
   },
   "required": [

@@ -6,13 +6,16 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { gcal_event_id, start_time, end_time } = await req.json();
+    const { gcal_event_id, start_time, end_time, title, description, attachments } = await req.json();
 
     const { accessToken } = await base44.asServiceRole.connectors.getConnection('googlecalendar');
 
     const patch = {
       start: { dateTime: start_time, timeZone: 'UTC' },
       end: { dateTime: end_time, timeZone: 'UTC' },
+      ...(title !== undefined ? { summary: title } : {}),
+      ...(description !== undefined ? { description } : {}),
+      ...(attachments !== undefined ? { attachments: attachments.map(a => ({ fileUrl: a.file_url, title: a.title })) } : {}),
     };
 
     const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${encodeURIComponent(gcal_event_id)}?supportsAttachments=true`, {

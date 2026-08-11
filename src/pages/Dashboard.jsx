@@ -295,7 +295,7 @@ export default function Dashboard() {
   const handleUpdateEvent = useCallback(async (event, updates) => {
     try {
       await updateEvent.mutateAsync({ id: event.id, data: updates });
-      if (event.gcal_event_id && (updates.title || updates.description || updates.start_time || updates.end_time)) {
+      if (event.gcal_event_id && (updates.title || updates.description || updates.start_time || updates.end_time || updates.attachments)) {
         try {
           await base44.functions.invoke('updateGCalEvent', {
             gcal_event_id: event.gcal_event_id,
@@ -303,6 +303,7 @@ export default function Dashboard() {
             description: updates.description ?? event.description ?? '',
             start_time: updates.start_time ?? event.start_time,
             end_time: updates.end_time ?? event.end_time,
+            ...(updates.attachments !== undefined ? { attachments: updates.attachments } : {}),
           });
         } catch (e) {
           toast.error('Google Calendar sync failed: ' + (e?.message || e));
