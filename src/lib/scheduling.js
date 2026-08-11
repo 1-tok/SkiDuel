@@ -190,32 +190,32 @@ export function computeSqueeze(allEvents, targetStart, durationMin, settings = {
   let newDur = Math.min(durationMin, Math.max(0, minTo(ceil) - minTo(newStart)));
   let newEnd = addMinutes(newStart, newDur);
 
-  // Shave / shift flexible items the new item overlaps so it fits in place, cascading
-  // later flexible items only when a shave would shrink one below the minimum length.
+  // Stagger the flexible items the new item overlaps so no two share a time: each is
+  // placed right after the previous one and shortened to fit before the next fixed
+  // meeting, following the existing sequence (To Do / dropped order). Items are
+  // compressed in place rather than bumped to far-off later slots.
   const flexAfter = dayEvents
     .filter(ev => ev.flex && ev !== overlapPrev && minTo(ev.e) > minTo(newStart))
     .sort((a, b) => a.s - b.s);
 
-  let cursor = new Date(newEnd);
-  for (const f of flexAfter) {
-    if (minTo(f.s) >= minTo(cursor)) break; // gap reached — no further cascade
-    const fDur = minTo(f.e) - minTo(f.s);
-    const shave = minTo(cursor) - minTo(f.s);
-    if (shave > 0 && fDur - shave >= MIN_ITEM) {
-      // Shave f's front: it starts at the cursor, keeping its end. No cascade needed.
-      updates.push({ id: f.id, start_time: cursor.toISOString(), end_time: f.e.toISOString(), date: format(cursor, 'yyyy-MM-dd') });
-      cursor = new Date(f.e);
-    } else {
-      // Can't shave enough — shift f later (preserve duration), past fixed meetings.
-      let fs = pushPastFixed(cursor, f.dur);
-      let fe = addMinutes(fs, f.dur);
-      // If the shift crosses the next fixed meeting, shave f to fit before it instead.
-      let nf = new Date(workEnd);
-      for (const fx of fixed) { if (fx.s >= fs && fx.s < nf) nf = new Date(fx.s); }
-      if (minTo(fe) > minTo(nf) && minTo(nf) - minTo(fs) >= MIN_ITEM) fe = new Date(nf);
-      updates.push({ id: f.id, start_time: fs.toISOString(), end_time: fe.toISOString(), date: format(fs, 'yyyy-MM-dd') });
-      cursor = fe;
-    }
+  const dayStart = startOfDay(day);
+  const workEndMin = minTo(workEnd);
+  let cursorMin = minTo(newEnd);
+  let i = 0;
+  while (i < flexAfter.length) {
+    const f = flexAfter[i];
+    if (minTo(f.s) >= cursorMin) break; // gap reached — no overlap, leave the rest
+    if (cursorMin >= workEndMin) break; // end of work day
+    let ceilMin = workEndMin;
+    for (const fx of fixed) { const fxMin = minTo(fx.s); if (fxMin > cursorMin && fxMin < ceilMin) ceilMin = fxMin; }
+    const avail = ceilMin - cursorMin;
+    if (avail < MIN_ITEM) { cursorMin = ceilMin; continue; } // blocked by a fixed meeting — step past it and retry this item
+    const fdur = Math.min(f.dur, avail); // shorten to fit, never below MIN_ITEM
+    const fs = addMinutes(dayStart, cursorMin);
+    const fe = addMinutes(dayStart, cursorMin + fdur);
+    updates.push({ id: f.id, start_time: fs.toISOString(), end_time: fe.toISOString(), date: format(fs, 'yyyy-MM-dd') });
+    cursorMin += fdur;
+    i++;
   }
 
   // No room at all before the next fixed meeting — nudge the new item after it.
