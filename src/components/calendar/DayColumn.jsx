@@ -55,7 +55,7 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
     const startMinutes = start.getHours() * 60 + start.getMinutes();
     const endMinutes = end.getHours() * 60 + end.getMinutes();
     const top = (startMinutes / 60) * HOUR_HEIGHT;
-    const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 24);
+    const height = Math.max(((endMinutes - startMinutes) / 60) * HOUR_HEIGHT, 44);
     const width = totalCols > 1 ? `${100 / totalCols}%` : 'calc(100% - 8px)';
     const left = totalCols > 1 ? `${(col / totalCols) * 100}%` : '4px';
     return { top: `${top}px`, height: `${height}px`, width, left };
