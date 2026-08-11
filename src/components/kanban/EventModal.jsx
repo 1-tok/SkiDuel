@@ -42,6 +42,9 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [sourceEmail, setSourceEmail] = useState(null);
+  const [emailBody, setEmailBody] = useState('');
+  const [loadingEmail, setLoadingEmail] = useState(false);
 
   useEffect(() => {
     if (!open || !event) { setEditing(false); setForm(null); return; }
@@ -59,6 +62,29 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
       attachments: (event.attachments || []).map(a => ({ file_url: a.file_url, title: a.title })),
     });
     setEditing(false);
+  }, [open, event]);
+
+  useEffect(() => {
+    if (!open || !event?.source_email_id) { setSourceEmail(null); setEmailBody(''); return; }
+    let active = true;
+    (async () => {
+      try {
+        const email = await base44.entities.Email.get(event.source_email_id);
+        if (!active) return;
+        setSourceEmail(email);
+        if (email.gmail_id) {
+          setLoadingEmail(true);
+          try {
+            const res = await base44.functions.invoke('getGmailBody', { gmail_id: email.gmail_id, source_account: email.source_account });
+            if (active) setEmailBody(res?.body || email.preview || '');
+          } catch { if (active) setEmailBody(email.preview || ''); }
+          finally { if (active) setLoadingEmail(false); }
+        } else {
+          setEmailBody(email.body || email.preview || '');
+        }
+      } catch { if (active) setSourceEmail(null); }
+    })();
+    return () => { active = false; };
   }, [open, event]);
 
   if (!event || !form) return null;
@@ -195,7 +221,19 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
               <span>{event.calendar_name}{event.source_account ? ` · ${event.source_account}` : ''}</span>
             </div>
           )}
-          {event.source === 'gmail' && (
+          {sourceEmail ? (
+            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                <span className="text-xs font-medium truncate">{sourceEmail.sender}</span>
+                {sourceEmail.sender_email && <span className="text-[10px] text-muted-foreground truncate">&lt;{sourceEmail.sender_email}&gt;</span>}
+              </div>
+              <div className="text-xs font-semibold text-foreground truncate">{sourceEmail.subject}</div>
+              <div className="max-h-32 overflow-y-auto text-xs text-muted-foreground">
+                {loadingEmail ? 'Loading email…' : <RichText content={emailBody || sourceEmail.preview || ''} className="text-xs text-muted-foreground" />}
+              </div>
+            </div>
+          ) : event.source === 'gmail' && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Mail className="w-4 h-4 flex-shrink-0" />
               <span>From Gmail</span>
