@@ -1034,7 +1034,7 @@ export default function Dashboard() {
             <InsightsPanel events={events} emails={emails} onBack={() => setScreen('app')} />
           ) : (
           <PanelGroup direction="horizontal" className="h-full">
-        <Panel defaultSize={22} minSize={14} maxSize={45} className="min-w-0">
+        <Panel defaultSize={30} minSize={14} maxSize={50} className="min-w-0">
         <GmailSidebar
           emails={emails}
           onMarkRead={handleMarkRead}
