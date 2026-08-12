@@ -10,19 +10,23 @@ export default function KanbanPanel({
   const now = new Date();
   // Exclude events from calendars shared with the user — they only show on the Calendar view.
   const own = events.filter(e => !e.is_shared_calendar);
-  const isPast = (e) => e.start_time && isBefore(parseISO(e.start_time), now);
+  const isDone = (e) => e.kanban_column === 'done' || e.status === 'completed';
+  const isRetired = (e) => e.kanban_column === 'past' || e.status === 'cancelled';
   const isTodayActive = (e) => {
     if (!e.start_time || !isToday(parseISO(e.start_time))) return false;
-    if (e.status === 'cancelled' || e.status === 'completed') return false;
+    if (isDone(e) || isRetired(e)) return false;
     const end = e.end_time ? parseISO(e.end_time) : parseISO(e.start_time);
     return end >= now;
   };
+  const isOverdue = (e) => e.start_time && isBefore(parseISO(e.start_time), now) && !isTodayActive(e) && !isDone(e) && !isRetired(e);
 
+  // "Doing Today" is driven by the calendar, not the stored column: any active item
+  // scheduled today shows here, and future items (even if stored as 'doing') fall to To Do.
   const columns = {
-    todo: own.filter(e => e.kanban_column === 'todo' && !isTodayActive(e) && !isPast(e)),
-    doing: own.filter(e => e.kanban_column === 'doing' || (e.kanban_column === 'todo' && isTodayActive(e))),
-    done: own.filter(e => e.kanban_column === 'done'),
-    past: own.filter(e => e.kanban_column === 'past' || (e.kanban_column === 'todo' && isPast(e) && !isTodayActive(e))),
+    todo: own.filter(e => !isTodayActive(e) && !isDone(e) && !isRetired(e) && !isOverdue(e)),
+    doing: own.filter(e => isTodayActive(e)),
+    done: own.filter(e => isDone(e)),
+    past: own.filter(e => isRetired(e) || isOverdue(e)),
   };
 
   const selected = selectedIds || new Set();
