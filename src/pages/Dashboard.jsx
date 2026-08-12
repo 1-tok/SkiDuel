@@ -1068,7 +1068,7 @@ export default function Dashboard() {
                 }}
               />
             ) : view === 'schedule' ? (
-              <ScheduleView events={[...activeEvents, ...ghosts]} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />
+              <ScheduleView events={[...activeEvents.filter(e => !e.is_shared_calendar), ...ghosts]} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />
             ) : (
               <KanbanPanel
                 events={visibleEvents}
