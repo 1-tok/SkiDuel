@@ -10,6 +10,7 @@ export default function KanbanCard({ event, isDragging, onDelete, onUpdate, sele
   const colors = getEventColor(event.color);
   const isCompleted = event.status === 'completed';
   const isCancelled = event.status === 'cancelled';
+  const isOverdue = event.status === 'scheduled' && event.end_time && new Date(event.end_time) < new Date();
   const startTime = event.start_time ? format(parseISO(event.start_time), 'h:mm a') : '';
   const attendeesLabel = formatAttendees(event.attendees, 2);
 
@@ -47,7 +48,7 @@ export default function KanbanCard({ event, isDragging, onDelete, onUpdate, sele
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-1">
               <div className={`w-1.5 h-1.5 rounded-full ${colors.dot} flex-shrink-0`} />
-              <span className={`text-xs font-medium truncate ${isCompleted || isCancelled ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
+              <span className={`text-xs font-medium truncate ${isCompleted || isCancelled || isOverdue ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                 {event.title}
               </span>
             </div>

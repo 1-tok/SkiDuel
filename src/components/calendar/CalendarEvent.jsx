@@ -8,6 +8,7 @@ export default function CalendarEvent({ event, isDragging, style, isGhost, onDel
   const colors = getEventColor(getCalendarColor(event));
   const isCompleted = event.status === 'completed';
   const isCancelled = event.status === 'cancelled';
+  const isOverdue = event.status === 'scheduled' && event.end_time && new Date(event.end_time) < new Date();
   const isShared = !!event.is_shared_calendar;
   const startTime = format(parseISO(event.start_time), 'h:mm a');
   const attendeesLabel = formatAttendees(event.attendees, 2);
@@ -42,7 +43,7 @@ export default function CalendarEvent({ event, isDragging, style, isGhost, onDel
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
             <div className={`w-1.5 h-1.5 rounded-full ${isGhost ? 'bg-primary/60' : colors.dot} flex-shrink-0`} />
-            <span className={`text-[11px] font-semibold break-words leading-tight flex-1 min-w-0 ${isGhost ? 'text-primary/70' : colors.text} ${isCompleted || isCancelled ? 'line-through' : ''}`}>
+            <span className={`text-[11px] font-semibold break-words leading-tight flex-1 min-w-0 ${isGhost ? 'text-primary/70' : colors.text} ${isCompleted || isCancelled || isOverdue ? 'line-through' : ''}`}>
               {event.title}
             </span>
             {!isGhost && event.source === 'gmail' && (

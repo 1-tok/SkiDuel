@@ -398,6 +398,8 @@ export default function Dashboard() {
       updateEvent.mutate({ id: event.id, data: { status: 'completed', kanban_column: 'done' } });
       const slot = findNextAvailableSlot(events, new Date(), settings);
       if (slot) {
+        const today = new Date();
+        const column = isSameDay(parseISO(slot.start_time), today) ? 'doing' : 'todo';
         createEvent.mutate({
           title: `Follow-up: ${event.title}`,
           description: followUpText,
@@ -406,7 +408,7 @@ export default function Dashboard() {
           date: slot.date,
           duration_minutes: settings.default_event_duration ?? 10,
           source: 'manual',
-          kanban_column: 'todo',
+          kanban_column: column,
           color: 'purple',
           status: 'scheduled',
           followup_note: followUpText,

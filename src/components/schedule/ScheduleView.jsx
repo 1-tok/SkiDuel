@@ -128,7 +128,7 @@ export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
                               </span>
                             </div>
                             <div className="flex-1 min-w-0">
-                              <p className={`text-sm font-medium truncate mb-0.5 ${e.isGhost ? 'text-primary/70' : 'text-foreground'}`}>
+                              <p className={`text-sm font-medium truncate mb-0.5 ${e.isGhost ? 'text-primary/70' : (e.status === 'scheduled' && e.end_time && new Date(e.end_time) < new Date()) ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                                 {e.title}
                               </p>
                               {e.isGhost ? (
