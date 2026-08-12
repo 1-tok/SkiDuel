@@ -20,7 +20,7 @@ export default function CalendarPanel({ events, settings, onUpdateEvent, onAddAt
     if (scrollRef.current) {
       const now = new Date();
       const minutesIntoDay = now.getHours() * 60 + now.getMinutes();
-      scrollRef.current.scrollTop = Math.max(0, (minutesIntoDay / 60) * HOUR_HEIGHT - 80);
+      scrollRef.current.scrollTop = Math.max(0, (minutesIntoDay / 60) * HOUR_HEIGHT - 48);
     }
   }, [viewMode]);
 

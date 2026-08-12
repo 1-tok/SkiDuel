@@ -22,12 +22,26 @@ const InsertionIndicator = () => (
   </div>
 );
 
+const NowLine = React.forwardRef(function NowLine({ label }, ref) {
+  return (
+    <div ref={ref} className="flex items-center gap-2 py-1" data-now-line>
+      <div className="w-2 h-2 rounded-full bg-destructive -ml-0.5" />
+      <div className="flex-1 h-[1.5px] bg-destructive" />
+      {label && <span className="text-[10px] font-semibold text-destructive tabular-nums whitespace-nowrap">{label}</span>}
+    </div>
+  );
+});
+
 export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
   const [modalEvent, setModalEvent] = useState(null);
   const [hoverIndex, setHoverIndex] = useState(null);
   const draggingOverRef = useRef(false);
+  const scrollRef = useRef(null);
+  const redlineRef = useRef(null);
+  const didScrollRef = useRef(false);
 
   const now = new Date();
+  const todayKey = format(now, 'yyyy-MM-dd');
   const upcoming = events
     .filter(e => e.start_time)
     .filter(e => {
@@ -38,6 +52,18 @@ export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
 
   const flatIndexById = {};
   upcoming.forEach((e, i) => { flatIndexById[e.id] = i; });
+
+  // On entering Schedule, scroll the "now" redline to the top of the view.
+  useEffect(() => {
+    if (didScrollRef.current) return;
+    const line = redlineRef.current;
+    const container = scrollRef.current;
+    if (!line || !container) return;
+    const lineRect = line.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    container.scrollTop = Math.max(0, container.scrollTop + lineRect.top - containerRect.top - 36);
+    didScrollRef.current = true;
+  }, [upcoming]);
 
   // While a drag is over the schedule, track the pointer so we can show where the
   // dropped item will insert among the existing cards.
@@ -76,7 +102,7 @@ export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
         const showIndicator = snapshot.isDraggingOver && hoverIndex !== null;
         return (
           <div
-            ref={provided.innerRef}
+            ref={(el) => { provided.innerRef(el); scrollRef.current = el; }}
             {...provided.droppableProps}
             onClick={(e) => { if (!e.target.closest('[data-schedule-item]')) onAdd?.(); }}
             className={`h-full overflow-y-auto overscroll-contain bg-muted/30 transition-colors ${snapshot.isDraggingOver ? 'bg-primary/10' : ''}`}
@@ -94,7 +120,14 @@ export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
                   <p className="text-[11px] text-muted-foreground/60 mt-1">Click to add an item, or drop an email here</p>
                 </button>
               )}
-              {groups.map(g => (
+              {groups.length > 0 && !groups.some(g => g.key === todayKey) && (
+                <NowLine ref={redlineRef} label={`${format(now, 'HH:mm')} · now`} />
+              )}
+              {groups.map(g => {
+                const isTodayGroup = g.key === todayKey;
+                const rawNowIdx = isTodayGroup ? g.items.findIndex(e => parseISO(e.start_time) > now) : -1;
+                const nowIdx = rawNowIdx === -1 ? g.items.length : rawNowIdx;
+                return (
                 <div key={g.key}>
                   <div className="sticky top-0 z-10 bg-background/80 backdrop-blur px-2 py-1.5 mb-2 flex items-center gap-2 border-b border-border">
                     <span className="text-xs font-semibold text-foreground">
@@ -105,10 +138,11 @@ export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
                     </span>
                   </div>
                   <div className="space-y-2">
-                    {g.items.map(e => {
+                    {g.items.map((e, i) => {
                       const flatIdx = flatIndexById[e.id];
                       return (
                         <React.Fragment key={e.id}>
+                          {isTodayGroup && i === nowIdx && <NowLine ref={redlineRef} label={`${format(now, 'HH:mm')} · now`} />}
                           {showIndicator && hoverIndex === flatIdx && <InsertionIndicator />}
                           <div
                             data-schedule-item
@@ -181,9 +215,13 @@ export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
                         </React.Fragment>
                       );
                     })}
+                    {isTodayGroup && nowIdx === g.items.length && (
+                      <NowLine ref={redlineRef} label={`${format(now, 'HH:mm')} · now`} />
+                    )}
                   </div>
                 </div>
-              ))}
+                );
+              })}
               {showIndicator && hoverIndex === upcoming.length && upcoming.length > 0 && <InsertionIndicator />}
               {provided.placeholder}
             </div>
