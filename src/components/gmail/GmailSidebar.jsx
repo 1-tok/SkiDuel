@@ -5,7 +5,7 @@ import EmailCard from './EmailCard';
 import { Draggable, Droppable } from '@hello-pangea/dnd';
 
 export default function GmailSidebar({
-  emails, onMarkRead, onSchedule, onOpen, onDelete,
+  emails, onMarkRead, onSchedule, onSnooze, onOpen, onDelete,
   selectedIds, onToggleSelect, onSelectAll, onBulkDelete, onBulkSchedule, onBulkDone,
 }) {
   const [showRead, setShowRead] = useState(false);
@@ -100,6 +100,7 @@ export default function GmailSidebar({
                         email={email}
                         onMarkRead={onMarkRead}
                         onSchedule={onSchedule}
+                        onSnooze={onSnooze}
                         onOpen={onOpen}
                         onDelete={onDelete}
                         isDragging={snapshot.isDragging}

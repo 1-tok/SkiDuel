@@ -281,6 +281,11 @@ export default function Dashboard() {
     }
   }, [updateEmail]);
 
+  const handleSnoozeEmail = useCallback((email) => {
+    updateEmail.mutate({ id: email.id, data: { is_read: true } });
+    toast.message('Snoozed');
+  }, [updateEmail]);
+
   const handleDeleteEvent = useCallback(async (event) => {
     // Soft-delete: move the item into the Past record instead of permanently removing it.
     try {
@@ -1017,6 +1022,7 @@ export default function Dashboard() {
           emails={emails}
           onMarkRead={handleMarkRead}
           onSchedule={handleScheduleEmail}
+          onSnooze={handleSnoozeEmail}
           onOpen={handleOpenEmail}
           onDelete={handleDeleteEmail}
           selectedIds={selectedEmailIds}
