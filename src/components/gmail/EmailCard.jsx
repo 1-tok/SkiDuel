@@ -1,6 +1,7 @@
 import React from 'react';
 import { Check, Calendar, Mail, GripVertical, Trash2, Clock } from 'lucide-react';
 import { format, parseISO } from 'date-fns';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 export default function EmailCard({ email, onMarkRead, onSchedule, onSnooze, onOpen, onDelete, isDragging, selected, onToggleSelect }) {
   const timeStr = email.timestamp ? format(parseISO(email.timestamp), 'HH:mm') : '';
@@ -32,38 +33,56 @@ export default function EmailCard({ email, onMarkRead, onSchedule, onSnooze, onO
                 <span className="text-[9px] font-semibold text-accent bg-accent/15 px-1 py-0.5 rounded">Slack</span>
               )}
               <span className="text-[10px] text-muted-foreground tabular-nums group-hover:hidden">{timeStr}</span>
-              <div className="hidden group-hover:flex items-center gap-1">
-                <button
-                  onClick={(e) => { e.stopPropagation(); onMarkRead(email); }}
-                  title="Done"
-                  className="p-1 rounded-md text-muted-foreground/70 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onSchedule(email); }}
-                  title="Schedule"
-                  className="p-1 rounded-md text-muted-foreground/70 hover:text-primary hover:bg-primary/5 transition-colors"
-                >
-                  <Calendar className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  onClick={(e) => { e.stopPropagation(); onSnooze(email); }}
-                  title="Snooze"
-                  className="p-1 rounded-md text-muted-foreground/70 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                >
-                  <Clock className="w-3.5 h-3.5" />
-                </button>
-                {onDelete && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onDelete(email); }}
-                    title="Move to Past"
-                    className="p-1 rounded-md text-muted-foreground/70 hover:text-destructive hover:bg-destructive/5 transition-colors"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
+              <TooltipProvider delayDuration={200}>
+                <div className="hidden group-hover:flex items-center gap-1">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onMarkRead(email); }}
+                        className="p-1 rounded-md text-muted-foreground/70 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Done</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSchedule(email); }}
+                        className="p-1 rounded-md text-muted-foreground/70 hover:text-primary hover:bg-primary/5 transition-colors"
+                      >
+                        <Calendar className="w-3.5 h-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Schedule</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={(e) => { e.stopPropagation(); onSnooze(email); }}
+                        className="p-1 rounded-md text-muted-foreground/70 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                      >
+                        <Clock className="w-3.5 h-3.5" />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>Snooze</TooltipContent>
+                  </Tooltip>
+                  {onDelete && (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); onDelete(email); }}
+                          className="p-1 rounded-md text-muted-foreground/70 hover:text-destructive hover:bg-destructive/5 transition-colors"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent>Move to Past</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+              </TooltipProvider>
             </div>
           </div>
           <p className="text-xs font-medium text-foreground/80 truncate mb-0.5">{email.subject}</p>
