@@ -4,7 +4,7 @@ import {
   CartesianGrid, Tooltip, Legend,
 } from 'recharts';
 import { format, parseISO, subDays, startOfDay, isSameDay, isAfter } from 'date-fns';
-import { ArrowLeft, ListTodo, CheckCircle2, CalendarCheck, Mail } from 'lucide-react';
+import { ArrowLeft, ListTodo, CheckCircle2, CalendarCheck, Mail, Trash2, Signal } from 'lucide-react';
 
 const DAYS = 14;
 
@@ -83,10 +83,29 @@ export default function InsightsPanel({ events, emails, onBack }) {
     const totalEmails = Object.values(emailCount).reduce((a, b) => a + b, 0);
     const avgEmails = totalEmails / activeEmailDays;
 
+    // Progress from clearing noise: items trashed / moved to Past.
+    const pastToday = events.filter(
+      (e) => e.status === 'cancelled' && e.updated_date && isSameDay(parseISO(e.updated_date), today)
+    ).length;
+    const pastWeek = events.filter(
+      (e) => e.status === 'cancelled' && e.updated_date && isAfter(parseISO(e.updated_date), weekStart)
+    ).length;
+
+    // Signal-to-noise: items placed in To-Do + moved to Done vs. trashed / moved to Past,
+    // measured over the rolling window.
+    const windowStart = subDays(startOfDay(today), DAYS - 1);
+    const inWindow = (d) => parseISO(d) >= windowStart;
+    const doneInWindow = events.filter((e) => e.status === 'completed' && e.updated_date && inWindow(e.updated_date)).length;
+    const pastInWindow = events.filter((e) => e.status === 'cancelled' && e.updated_date && inWindow(e.updated_date)).length;
+    const todoInWindow = events.filter((e) => e.kanban_column === 'todo' && e.created_date && inWindow(e.created_date)).length;
+    const signal = doneInWindow + todoInWindow;
+    const noise = pastInWindow;
+    const signalToNoise = signal + noise > 0 ? Math.round((signal / (signal + noise)) * 100) : 0;
+
     return {
       donePerDay,
       backlogSeries,
-      stats: { backlogNow, doneToday, doneWeek, avgEmails },
+      stats: { backlogNow, doneToday, doneWeek, avgEmails, pastToday, pastWeek, signalToNoise },
     };
   }, [events, emails]);
 
@@ -106,12 +125,17 @@ export default function InsightsPanel({ events, emails, onBack }) {
       </div>
 
       <div className="flex-1 min-h-0 overflow-auto p-4 space-y-4">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
           <StatCard icon={ListTodo} label="Backlog (To Do)" value={stats.backlogNow} tint="bg-primary/10 text-primary" />
           <StatCard icon={CheckCircle2} label="Done today" value={stats.doneToday} tint="bg-chart-2/15 text-chart-2" />
           <StatCard icon={CalendarCheck} label="Done this week" value={stats.doneWeek} tint="bg-chart-3/15 text-chart-3" />
+          <StatCard icon={Trash2} label="Moved to Past (week)" value={stats.pastWeek} tint="bg-destructive/10 text-destructive" />
+          <StatCard icon={Signal} label="Signal-to-noise" value={`${stats.signalToNoise}%`} tint="bg-chart-5/15 text-chart-5" />
           <StatCard icon={Mail} label="Avg emails / day" value={stats.avgEmails.toFixed(1)} tint="bg-chart-4/15 text-chart-4" />
         </div>
+        <p className="text-[11px] text-muted-foreground -mt-1">
+          Signal-to-noise = items placed in To-Do or moved to Done vs. those trashed or moved to Past (last {DAYS} days).
+        </p>
 
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">

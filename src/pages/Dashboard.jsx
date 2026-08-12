@@ -367,19 +367,20 @@ export default function Dashboard() {
     updateEmail.mutate({ id: email.id, data: { is_actioned: true } });
   }, [events, settings, createEvent, updateEmail]);
 
-  const triggerCelebration = useCallback((completedEventId) => {
+  const triggerCelebration = useCallback(async (completedEventId) => {
+    // Re-fetch before counting so the just-completed (and any bulk-completed) items
+    // are reflected — the closed-over `events` is stale until the query refetches.
+    await queryClient.invalidateQueries({ queryKey: ['events'] });
+    const fresh = queryClient.getQueryData(['events']) || [];
     const today = new Date();
     const sw = startOfWeek(today);
     const ew = addDays(sw, 7);
     const inWeek = (d) => { const x = parseISO(d); return x >= sw && x < ew; };
-    const completedToday = events.filter(e => e.status === 'completed' && e.updated_date && isSameDay(parseISO(e.updated_date), today));
-    const completedWeek = events.filter(e => e.status === 'completed' && e.updated_date && inWeek(e.updated_date));
-    // The just-completed item isn't refetched yet, so count it explicitly.
-    const doneToday = completedToday.length + (completedToday.some(e => e.id === completedEventId) ? 0 : 1);
-    const doneThisWeek = completedWeek.length + (completedWeek.some(e => e.id === completedEventId) ? 0 : 1);
-    const leftToday = events.filter(e => e.status === 'scheduled' && e.start_time && isSameDay(parseISO(e.start_time), today)).length;
+    const doneToday = fresh.filter(e => e.status === 'completed' && e.updated_date && isSameDay(parseISO(e.updated_date), today)).length;
+    const doneThisWeek = fresh.filter(e => e.status === 'completed' && e.updated_date && inWeek(e.updated_date)).length;
+    const leftToday = fresh.filter(e => e.status === 'scheduled' && e.start_time && isSameDay(parseISO(e.start_time), today)).length;
     setCelebration({ open: true, stats: { doneToday, doneThisWeek, leftToday } });
-  }, [events]);
+  }, [queryClient]);
 
   const handleFollowUpAction = useCallback(async (event, action, followUpText) => {
     if (action === 'completed') {
