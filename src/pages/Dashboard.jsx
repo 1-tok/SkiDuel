@@ -469,6 +469,22 @@ export default function Dashboard() {
     if (fate === 'done') triggerCelebration(eventId);
   }, [events, settings, updateEvent, triggerCelebration]);
 
+  // Link an email to an existing item: set the item's source_email_id and remove any
+  // auto-created placeholder so the email only tracks against the chosen item.
+  const handleAssignEmailToItem = useCallback(async (email, item) => {
+    try {
+      await base44.entities.CalendarEvent.update(item.id, { source_email_id: email.id });
+      const linked = await base44.entities.CalendarEvent.filter({ source_email_id: email.id });
+      await Promise.all(linked.filter(e => e.id !== item.id).map(e => base44.entities.CalendarEvent.delete(e.id)));
+      await base44.entities.Email.update(email.id, { is_actioned: true, is_read: true });
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['emails'] });
+      toast.success(`Assigned to "${item.title}"`);
+    } catch (e) {
+      toast.error('Could not assign: ' + (e?.message || e));
+    }
+  }, [queryClient]);
+
   // Push a scheduled item to Google Calendar, then create the local event with the
   // gcal id already set so the webhook sync updates it instead of duplicating it.
   const createAndPushEvent = useCallback(async (data) => {
@@ -1087,6 +1103,8 @@ export default function Dashboard() {
         open={!!openEmail}
         onClose={() => { setOpenEmail(null); setOpenEmailEventId(null); }}
         onSetFate={handleSetFate}
+        assignableEvents={visibleEvents}
+        onAssignToItem={handleAssignEmailToItem}
       />
 
       <AddItemModal
