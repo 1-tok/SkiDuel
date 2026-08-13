@@ -4,6 +4,7 @@ import { Mail, Share2, CalendarClock, Trash2, Users } from 'lucide-react';
 import { Droppable } from '@hello-pangea/dnd';
 import { formatAttendees } from '@/lib/attendees';
 import EventModal from '../kanban/EventModal';
+import ItemDropTarget from '../dnd/ItemDropTarget';
 
 const statusStyles = {
   scheduled: 'bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300',
@@ -32,7 +33,7 @@ const NowLine = React.forwardRef(function NowLine({ label }, ref) {
   );
 });
 
-export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
+export default function ScheduleView({ events, onAdd, onDelete, onUpdate, draggingKind }) {
   const [modalEvent, setModalEvent] = useState(null);
   const [hoverIndex, setHoverIndex] = useState(null);
   const draggingOverRef = useRef(false);
@@ -144,6 +145,7 @@ export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
                         <React.Fragment key={e.id}>
                           {isTodayGroup && i === nowIdx && <NowLine ref={redlineRef} label={`${format(now, 'HH:mm')} · now`} />}
                           {showIndicator && hoverIndex === flatIdx && <InsertionIndicator />}
+                          <ItemDropTarget itemId={e.id} disabled={draggingKind !== 'email' || !!e.isGhost}>
                           <div
                             data-schedule-item
                             onClick={() => !e.isGhost && setModalEvent(e)}
@@ -212,6 +214,7 @@ export default function ScheduleView({ events, onAdd, onDelete, onUpdate }) {
                               </button>
                             )}
                           </div>
+                          </ItemDropTarget>
                         </React.Fragment>
                       );
                     })}

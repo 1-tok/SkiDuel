@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { format, parseISO } from 'date-fns';
-import { Mail, Clock, Calendar, FileText, Trash2, Save, Paperclip, X } from 'lucide-react';
+import { Mail, Clock, Calendar, FileText, Trash2, Save, Paperclip, X, Download, Loader2 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -30,6 +30,18 @@ const columnOptions = [
   { value: 'past', label: 'Past' },
 ];
 const colorOptions = ['blue', 'green', 'purple', 'orange', 'pink'];
+const priorityOptions = [
+  { value: 'P1', label: 'P1 · Urgent' },
+  { value: 'P2', label: 'P2 · High' },
+  { value: 'P3', label: 'P3 · Normal' },
+  { value: 'P4', label: 'P4 · Low' },
+];
+const priorityBadge = {
+  P1: 'bg-red-100 text-red-700',
+  P2: 'bg-orange-100 text-orange-700',
+  P3: 'bg-blue-100 text-blue-700',
+  P4: 'bg-slate-100 text-slate-600',
+};
 
 function toLocalInput(dateIso) {
   if (!dateIso) return { date: '', time: '' };
@@ -43,6 +55,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
   const [sourceEmail, setSourceEmail] = useState(null);
   const [emailBody, setEmailBody] = useState('');
   const [loadingEmail, setLoadingEmail] = useState(false);
+  const [downloadingAtt, setDownloadingAtt] = useState(null);
 
   useEffect(() => {
     if (!open || !event) { setForm(null); return; }
@@ -55,6 +68,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
       endTime: e.time || '09:30',
       description: event.description || '',
       status: event.status || 'scheduled',
+      priority: event.priority || 'P3',
       color: event.color || 'blue',
       kanban_column: event.kanban_column || 'doing',
       attachments: (event.attachments || []).map(a => ({ file_url: a.file_url, title: a.title })),
@@ -104,6 +118,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
       date: form.date,
       duration_minutes,
       status: form.status,
+      priority: form.priority,
       color: form.color,
       kanban_column: form.kanban_column,
       attachments: form.attachments,
@@ -128,6 +143,38 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
   };
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  const handleDownloadLinkedAttachment = async (le, att) => {
+    if (!le.gmail_id || !att.attachmentId) return;
+    setDownloadingAtt(att.attachmentId);
+    try {
+      const res = await base44.functions.invoke('getGmailAttachment', {
+        gmail_id: le.gmail_id,
+        attachment_id: att.attachmentId,
+        source_account: le.source_account,
+        filename: att.filename,
+        mimeType: att.mimeType,
+      });
+      if (res?.error) throw new Error(res.error);
+      const normalized = (res.data || '').replace(/-/g, '+').replace(/_/g, '/');
+      const byteChars = atob(normalized);
+      const bytes = new Uint8Array(byteChars.length);
+      for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+      const blob = new Blob([bytes], { type: res.mimeType || att.mimeType });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = res.filename || att.filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch (e) {
+      toast.error('Download failed: ' + (e?.message || e));
+    } finally {
+      setDownloadingAtt(null);
+    }
+  };
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -174,11 +221,17 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
 
           {/* Status / column / color */}
           {canEdit && (
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-4 gap-2">
               <div>
                 <label className="text-[10px] text-muted-foreground">Status</label>
                 <select value={form.status} onChange={(e) => set('status', e.target.value)} className="w-full h-8 text-xs border border-input rounded-md bg-background px-2">
                   {statusOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground">Priority</label>
+                <select value={form.priority} onChange={(e) => set('priority', e.target.value)} className="w-full h-8 text-xs border border-input rounded-md bg-background px-2">
+                  {priorityOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                 </select>
               </div>
               <div>
@@ -200,6 +253,7 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
           {!canEdit && (
             <div className="flex items-center gap-2 flex-wrap">
               <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${status.className}`}>{status.label}</span>
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${priorityBadge[event.priority] || priorityBadge.P3}`}>{event.priority || 'P3'}</span>
               {event.kanban_column && (
                 <span className="text-xs text-muted-foreground px-2 py-0.5 rounded-full bg-muted">
                   {columnLabels[event.kanban_column] || event.kanban_column}
@@ -219,8 +273,42 @@ export default function EventModal({ event, open, onClose, onDelete, onUpdate })
             </div>
           )}
 
-          {/* Source email (child) */}
-          {sourceEmail ? (
+          {/* Emails included in this item */}
+          {event.linked_emails && event.linked_emails.length > 0 ? (
+            <div className="space-y-2">
+              {event.linked_emails.map((le, idx) => (
+                <div key={idx} className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <Mail className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                    <span className="text-xs font-medium truncate">{le.sender}</span>
+                    {le.sender_email && <span className="text-[10px] text-muted-foreground truncate">&lt;{le.sender_email}&gt;</span>}
+                  </div>
+                  <div className="text-xs font-semibold text-foreground truncate">{le.subject}</div>
+                  {le.preview && (
+                    <div className="max-h-28 overflow-y-auto text-xs text-muted-foreground">
+                      <RichText content={le.preview} className="text-xs text-muted-foreground" />
+                    </div>
+                  )}
+                  {le.attachments && le.attachments.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {le.attachments.map((att, ai) => (
+                        <button
+                          key={ai}
+                          onClick={() => handleDownloadLinkedAttachment(le, att)}
+                          disabled={downloadingAtt === att.attachmentId}
+                          className="flex items-center gap-1.5 text-[11px] rounded-md border border-border bg-card px-2 py-1 hover:bg-muted transition-colors disabled:opacity-60"
+                        >
+                          <Paperclip className="w-3 h-3 text-muted-foreground" />
+                          <span className="truncate max-w-[160px]">{att.filename}</span>
+                          {downloadingAtt === att.attachmentId ? <Loader2 className="w-3 h-3 animate-spin" /> : <Download className="w-3 h-3" />}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : sourceEmail ? (
             <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-1.5">
               <div className="flex items-center gap-2">
                 <Mail className="w-3.5 h-3.5 text-primary flex-shrink-0" />

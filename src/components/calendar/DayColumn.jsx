@@ -3,11 +3,12 @@ import { Droppable } from '@hello-pangea/dnd';
 import { format, parseISO, isSameDay, isToday } from 'date-fns';
 import CalendarEvent from './CalendarEvent';
 import EventModal from '../kanban/EventModal';
+import ItemDropTarget from '../dnd/ItemDropTarget';
 import { getEventColor, getCalendarColor } from '@/lib/scheduling';
 
 const HOUR_HEIGHT = 60; // px per hour
 
-export default function DayColumn({ date, events, workStart = 9, workEnd = 18, onUpdateEvent, previewDuration = 30, minWidth = 0, onAddAt, onDeleteEvent, onEditEvent }) {
+export default function DayColumn({ date, events, workStart = 9, workEnd = 18, onUpdateEvent, previewDuration = 30, minWidth = 0, onAddAt, onDeleteEvent, onEditEvent, draggingKind }) {
   const containerRef = useRef(null);
   const [draggingEvent, setDraggingEvent] = useState(null);
   const dragState = useRef(null);
@@ -233,7 +234,9 @@ export default function DayColumn({ date, events, workStart = 9, workEnd = 18, o
                     style={{ ...style, top, zIndex: isDraggingThis ? 50 : 10 + col }}
                     className={`absolute transition-none shadow-sm ${isDraggingThis ? 'opacity-80 shadow-xl ring-2 ring-primary/30 rounded-lg' : ''}`}
                   >
-                    <CalendarEvent event={event} isDragging={isDraggingThis} onDelete={onDeleteEvent} style={{ position: 'relative', left: 0, right: 0, width: '100%', height: '100%' }} />
+                    <ItemDropTarget itemId={event.id} disabled={draggingKind !== 'email'} className="h-full">
+                      <CalendarEvent event={event} isDragging={isDraggingThis} onDelete={onDeleteEvent} style={{ position: 'relative', left: 0, right: 0, width: '100%', height: '100%' }} />
+                    </ItemDropTarget>
                   </div>
                 );
               })}

@@ -3,10 +3,11 @@ import { Droppable } from '@hello-pangea/dnd';
 import { isToday, format, parseISO, isSameDay } from 'date-fns';
 import { getEventColor, getCalendarColor } from '@/lib/scheduling';
 import EventModal from '../kanban/EventModal';
+import ItemDropTarget from '../dnd/ItemDropTarget';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function WeekGridView({ days, events, onAddAt, onDeleteEvent, onEditEvent }) {
+export default function WeekGridView({ days, events, onAddAt, onDeleteEvent, onEditEvent, draggingKind }) {
   const [modalEvent, setModalEvent] = useState(null);
 
   return (
@@ -44,15 +45,16 @@ export default function WeekGridView({ days, events, onAddAt, onDeleteEvent, onE
                     {dayEvents.slice(0, 6).map(e => {
                       const c = getEventColor(getCalendarColor(e));
                       return (
-                        <div
-                          key={e.id}
-                          data-chip
-                          onClick={(ev) => { ev.stopPropagation(); setModalEvent(e); }}
-                          className={`text-[10px] truncate px-1 py-0.5 rounded border cursor-pointer ${c.bg} ${c.text} ${c.border}`}
-                          title={e.title}
-                        >
-                          {format(parseISO(e.start_time), 'HH:mm')} {e.title}
-                        </div>
+                        <ItemDropTarget key={e.id} itemId={e.id} disabled={draggingKind !== 'email'} compact>
+                          <div
+                            data-chip
+                            onClick={(ev) => { ev.stopPropagation(); setModalEvent(e); }}
+                            className={`text-[10px] truncate px-1 py-0.5 rounded border cursor-pointer ${c.bg} ${c.text} ${c.border}`}
+                            title={e.title}
+                          >
+                            {format(parseISO(e.start_time), 'HH:mm')} {e.title}
+                          </div>
+                        </ItemDropTarget>
                       );
                     })}
                     {dayEvents.length > 6 && (

@@ -96,6 +96,7 @@ export default function Dashboard() {
   const [selectedEventIds, setSelectedEventIds] = useState(new Set());
   const [view, setView] = useState('schedule'); // 'calendar' | 'board'
   const [screen, setScreen] = useState('app'); // 'app' | 'insights'
+  const [draggingKind, setDraggingKind] = useState(null); // 'email' | 'event' | null
   const followUpTimersRef = useRef({});
   const dragPosRef = useRef({ y: 0 });
   const suppressClickRef = useRef(false);
@@ -679,6 +680,29 @@ export default function Dashboard() {
     // Suppress the click that fires on the droppable after a drag (would open "Add item").
     suppressClickRef.current = true;
     if (!destination) return;
+    // Dropping an email onto an existing item links the email INTO that item
+    // (with its attachments) instead of squeezing a new event in.
+    if (destination.droppableId.startsWith('item-')) {
+      const targetId = destination.droppableId.replace('item-', '');
+      if (!draggableId.startsWith('email-')) return; // event-onto-item: no-op
+      const emailId = draggableId.replace('email-', '');
+      const email = emails.find(e => e.id === emailId);
+      if (!email) return;
+      const targets = (selectedEmailIds.has(email.id) && selectedEmailIds.size > 1)
+        ? emails.filter(e => selectedEmailIds.has(e.id)) : [email];
+      try {
+        await Promise.all(targets.map(em =>
+          base44.functions.invoke('linkEmailToEvent', { event_id: targetId, email_id: em.id })
+        ));
+        await queryClient.invalidateQueries({ queryKey: ['events'] });
+        await queryClient.invalidateQueries({ queryKey: ['emails'] });
+        setSelectedEmailIds(new Set());
+        toast.success(`Linked ${targets.length} email${targets.length > 1 ? 's' : ''} into item`);
+      } catch (e) {
+        toast.error('Could not link email: ' + (e?.message || e));
+      }
+      return;
+    }
     // Dropped back onto its exact original slot — nothing to do.
     if (source.droppableId === destination.droppableId && source.index === destination.index) return;
     const today = new Date();
@@ -952,7 +976,7 @@ export default function Dashboard() {
   }
 
   return (
-    <DragDropContext onDragStart={() => { suppressClickRef.current = true; }} onDragEnd={handleDragEnd}>
+    <DragDropContext onDragStart={(start) => { suppressClickRef.current = true; setDraggingKind(start.draggableId.startsWith('email-') ? 'email' : 'event'); }} onDragEnd={(r) => { setDraggingKind(null); handleDragEnd(r); }}>
       <div className="h-screen flex flex-col overflow-hidden bg-background">
         {/* Full-width navbar */}
         <div className="flex items-center gap-3 px-4 py-2 border-b border-border bg-card shrink-0">
@@ -1057,6 +1081,7 @@ export default function Dashboard() {
               <CalendarPanel
                 events={[...activeEvents, ...ghosts]}
                 settings={settings}
+                draggingKind={draggingKind}
                 onUpdateEvent={(id, data) => updateEvent.mutate({ id, data })}
                 onDeleteEvent={handleDeleteEvent}
                 onEditEvent={handleUpdateEvent}
@@ -1068,10 +1093,11 @@ export default function Dashboard() {
                 }}
               />
             ) : view === 'schedule' ? (
-              <ScheduleView events={[...activeEvents.filter(e => !e.is_shared_calendar), ...ghosts]} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />
+              <ScheduleView events={[...activeEvents.filter(e => !e.is_shared_calendar), ...ghosts]} draggingKind={draggingKind} onAdd={() => setAddState({ prefill: {} })} onDelete={handleDeleteEvent} onUpdate={handleUpdateEvent} />
             ) : (
               <KanbanPanel
                 events={visibleEvents}
+                draggingKind={draggingKind}
                 onAdd={(column) => setAddState({ prefill: { column } })}
                 onDelete={handleDeleteEvent}
                 onUpdate={handleUpdateEvent}

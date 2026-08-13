@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { Plus } from 'lucide-react';
 import KanbanCard from './KanbanCard';
+import ItemDropTarget from '../dnd/ItemDropTarget';
 
 const columnConfig = {
   todo: { label: 'To Do', color: 'bg-blue-400', emptyText: 'No upcoming tasks' },
@@ -10,7 +11,7 @@ const columnConfig = {
   past: { label: 'Past', color: 'bg-slate-400', emptyText: 'No past items' },
 };
 
-export default function KanbanColumn({ columnId, events, onAdd, onDelete, onUpdate, selectedIds, onToggleSelect, onSelectAll }) {
+export default function KanbanColumn({ columnId, events, onAdd, onDelete, onUpdate, draggingKind, selectedIds, onToggleSelect, onSelectAll }) {
   const config = columnConfig[columnId];
   const selected = selectedIds || new Set();
   const allSelected = events.length > 0 && events.every(e => selected.has(e.id));
@@ -72,14 +73,16 @@ export default function KanbanColumn({ columnId, events, onAdd, onDelete, onUpda
                     {...provided.dragHandleProps}
                     data-kanban-card
                   >
-                    <KanbanCard
-                      event={event}
-                      isDragging={snapshot.isDragging}
-                      onDelete={onDelete}
-                      onUpdate={onUpdate}
-                      selected={selected.has(event.id)}
-                      onToggleSelect={onToggleSelect}
-                    />
+                    <ItemDropTarget itemId={event.id} disabled={draggingKind !== 'email'}>
+                      <KanbanCard
+                        event={event}
+                        isDragging={snapshot.isDragging}
+                        onDelete={onDelete}
+                        onUpdate={onUpdate}
+                        selected={selected.has(event.id)}
+                        onToggleSelect={onToggleSelect}
+                      />
+                    </ItemDropTarget>
                   </div>
                 )}
               </Draggable>

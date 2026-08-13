@@ -7,7 +7,7 @@ import WeekGridView from './WeekGridView';
 
 const HOUR_HEIGHT = 60;
 
-export default function CalendarPanel({ events, settings, onUpdateEvent, onAddAt, onDeleteEvent, onEditEvent }) {
+export default function CalendarPanel({ events, settings, onUpdateEvent, onAddAt, onDeleteEvent, onEditEvent, draggingKind }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState('day');
   const scrollRef = useRef(null);
@@ -35,7 +35,7 @@ export default function CalendarPanel({ events, settings, onUpdateEvent, onAddAt
     return (
       <div className="flex-1 flex flex-col h-full min-h-0 bg-background min-w-0">
         <CalendarHeader currentDate={currentDate} setCurrentDate={setCurrentDate} viewMode={viewMode} setViewMode={setViewMode} />
-        <MonthView currentDate={currentDate} events={events} setCurrentDate={setCurrentDate} setViewMode={setViewMode} onDeleteEvent={onDeleteEvent} onEditEvent={onEditEvent} />
+        <MonthView currentDate={currentDate} events={events} setCurrentDate={setCurrentDate} setViewMode={setViewMode} onDeleteEvent={onDeleteEvent} onEditEvent={onEditEvent} draggingKind={draggingKind} />
       </div>
     );
   }
@@ -44,7 +44,7 @@ export default function CalendarPanel({ events, settings, onUpdateEvent, onAddAt
     return (
       <div className="flex-1 flex flex-col h-full min-h-0 bg-background min-w-0">
         <CalendarHeader currentDate={currentDate} setCurrentDate={setCurrentDate} viewMode={viewMode} setViewMode={setViewMode} />
-        <WeekGridView days={days} events={events} onAddAt={onAddAt} onDeleteEvent={onDeleteEvent} onEditEvent={onEditEvent} />
+        <WeekGridView days={days} events={events} onAddAt={onAddAt} onDeleteEvent={onDeleteEvent} onEditEvent={onEditEvent} draggingKind={draggingKind} />
       </div>
     );
   }
@@ -98,6 +98,7 @@ export default function CalendarPanel({ events, settings, onUpdateEvent, onAddAt
               onAddAt={onAddAt}
               onDeleteEvent={onDeleteEvent}
               onEditEvent={onEditEvent}
+              draggingKind={draggingKind}
             />
           ))}
         </div>

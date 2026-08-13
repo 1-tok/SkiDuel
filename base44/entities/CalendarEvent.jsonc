@@ -40,6 +40,17 @@
       ],
       "default": "scheduled"
     },
+    "priority": {
+      "type": "string",
+      "enum": [
+        "P1",
+        "P2",
+        "P3",
+        "P4"
+      ],
+      "default": "P3",
+      "description": "Gmail/Slack-style priority (P1 urgent -> P4 low)"
+    },
     "source": {
       "type": "string",
       "enum": [
@@ -51,7 +62,61 @@
     },
     "source_email_id": {
       "type": "string",
-      "description": "Reference to source email if created from Gmail"
+      "description": "Reference to the primary source email if created from Gmail"
+    },
+    "linked_emails": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "email_id": {
+            "type": "string",
+            "description": "The linked Email entity id"
+          },
+          "subject": {
+            "type": "string"
+          },
+          "sender": {
+            "type": "string"
+          },
+          "sender_email": {
+            "type": "string"
+          },
+          "preview": {
+            "type": "string"
+          },
+          "gmail_id": {
+            "type": "string"
+          },
+          "source_account": {
+            "type": "string"
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string"
+                },
+                "mimeType": {
+                  "type": "string"
+                },
+                "size": {
+                  "type": "number"
+                },
+                "attachmentId": {
+                  "type": "string"
+                }
+              }
+            },
+            "default": [],
+            "description": "Gmail attachment references carried with this linked email"
+          }
+        }
+      },
+      "default": [],
+      "description": "Emails included within this item (with their attachment references)"
     },
     "gcal_event_id": {
       "type": "string",

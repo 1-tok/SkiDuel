@@ -3,10 +3,11 @@ import { Droppable } from '@hello-pangea/dnd';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isToday, format, parseISO, isSameDay } from 'date-fns';
 import { getEventColor, getCalendarColor } from '@/lib/scheduling';
 import EventModal from '../kanban/EventModal';
+import ItemDropTarget from '../dnd/ItemDropTarget';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export default function MonthView({ currentDate, events, setCurrentDate, setViewMode, onDeleteEvent, onEditEvent }) {
+export default function MonthView({ currentDate, events, setCurrentDate, setViewMode, onDeleteEvent, onEditEvent, draggingKind }) {
   const [modalEvent, setModalEvent] = useState(null);
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -52,14 +53,15 @@ export default function MonthView({ currentDate, events, setCurrentDate, setView
                     {dayEvents.slice(0, 3).map(e => {
                       const c = getEventColor(getCalendarColor(e));
                       return (
-                        <button
-                          key={e.id}
-                          onClick={(ev) => { ev.stopPropagation(); setModalEvent(e); }}
-                          className={`w-full text-left text-[10px] truncate px-1 py-0.5 rounded ${c.bg} ${c.text} hover:ring-1 hover:ring-primary/40 transition-shadow`}
-                          title={e.title}
-                        >
-                          {e.start_time && format(parseISO(e.start_time), 'HH:mm')} {e.title}
-                        </button>
+                        <ItemDropTarget key={e.id} itemId={e.id} disabled={draggingKind !== 'email'} compact>
+                          <button
+                            onClick={(ev) => { ev.stopPropagation(); setModalEvent(e); }}
+                            className={`w-full text-left text-[10px] truncate px-1 py-0.5 rounded ${c.bg} ${c.text} hover:ring-1 hover:ring-primary/40 transition-shadow`}
+                            title={e.title}
+                          >
+                            {e.start_time && format(parseISO(e.start_time), 'HH:mm')} {e.title}
+                          </button>
+                        </ItemDropTarget>
                       );
                     })}
                     {dayEvents.length > 3 && (
