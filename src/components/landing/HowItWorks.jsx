@@ -4,7 +4,7 @@ import { Plug, MousePointerClick, PartyPopper } from 'lucide-react';
 
 const steps = [
   { icon: Plug, title: 'Connect', body: 'Link Gmail and Google Calendar in one click. Your inbox and meetings flow in automatically.' },
-  { icon: MousePointerClick, title: 'Drag', body: 'Pull any email or task onto your day. Calkanban finds the right slot and squeezes around fixed meetings.' },
+  { icon: MousePointerClick, title: 'Drag', body: 'Pull any email or task onto your day. Skiduel finds the right slot and squeezes around fixed meetings.' },
   { icon: PartyPopper, title: 'Done', body: 'Work the list. We nudge you when a slot ends, reschedule what slips, and celebrate what you finish.' },
 ];
 

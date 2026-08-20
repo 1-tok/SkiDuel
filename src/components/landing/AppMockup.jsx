@@ -28,7 +28,7 @@ export default function AppMockup() {
         <span className="h-2.5 w-2.5 rounded-full bg-rose-400" />
         <span className="h-2.5 w-2.5 rounded-full bg-amber-400" />
         <span className="h-2.5 w-2.5 rounded-full bg-emerald-400" />
-        <span className="ml-3 text-xs text-muted-foreground">Calkanban — your day, unified</span>
+        <span className="ml-3 text-xs text-muted-foreground">Skiduel — your day, unified</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-12">
         {/* Communications */}

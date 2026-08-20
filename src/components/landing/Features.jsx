@@ -11,9 +11,9 @@ const replaced = [
 
 const features = [
   { icon: Inbox, title: 'Unified inbox', body: 'Gmail, Slack, and more land in one stream. Drag any message straight onto your day — no copying, no context switching.' },
-  { icon: CalendarDays, title: 'Drag-and-drop scheduling', body: 'Drop a task or email onto your calendar and Calkanban snaps it to the right time, in 15-minute increments.' },
+  { icon: CalendarDays, title: 'Drag-and-drop scheduling', body: 'Drop a task or email onto your calendar and Skiduel snaps it to the right time, in 15-minute increments.' },
   { icon: Columns, title: 'Kanban that knows your calendar', body: 'To-do, doing, done — organized around your real meetings, so nothing gets double-booked.' },
-  { icon: Zap, title: 'Smart scheduling', body: 'Add a task and Calkanban squeezes it around your fixed meetings automatically. Your calendar reshuffles itself.' },
+  { icon: Zap, title: 'Smart scheduling', body: 'Add a task and Skiduel squeezes it around your fixed meetings automatically. Your calendar reshuffles itself.' },
   { icon: BarChart3, title: 'Insights', body: 'See what you finished, what slipped, and where your time actually goes — across days and weeks.' },
   { icon: Bell, title: 'Daily summary', body: "A calm end-of-day rundown — in-app and on Slack — of what's done and what's coming next." },
 ];
@@ -26,7 +26,7 @@ export default function Features() {
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight">Your day lives in five tabs.</h2>
           <p className="mt-3 text-muted-foreground">
             Email here, calendar there, notes somewhere else, a kanban board you forgot about, and a
-            to-do list that never ends. Calkanban puts them back together.
+            to-do list that never ends. Skiduel puts them back together.
           </p>
           <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
             {replaced.map(({ icon: Icon, label }) => (
@@ -39,7 +39,7 @@ export default function Features() {
             ))}
             <ArrowRight className="h-4 w-4 text-muted-foreground" />
             <span className="inline-flex items-center gap-1.5 rounded-full bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground shadow-sm">
-              <CalendarDays className="h-3.5 w-3.5" /> Calkanban
+              <CalendarDays className="h-3.5 w-3.5" /> Skiduel
             </span>
           </div>
         </div>

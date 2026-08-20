@@ -8,8 +8,8 @@ export default function Nav() {
     <header className="sticky top-0 z-40 border-b border-border bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="mx-auto max-w-6xl px-4 sm:px-6 h-14 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <img src={LOGO} alt="Calkanban" className="h-7 w-7 rounded-lg object-cover" />
-          <span className="font-semibold tracking-tight">Calkanban</span>
+          <img src={LOGO} alt="Skiduel" className="h-7 w-7 rounded-lg object-cover" />
+          <span className="font-semibold tracking-tight">Skiduel</span>
         </Link>
         <nav className="hidden md:flex items-center gap-7 text-sm text-muted-foreground">
           <a href="#why" className="hover:text-foreground transition-colors">Why switch</a>

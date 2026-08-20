@@ -19,7 +19,7 @@ export const CONNECTABLE = [
     key: 'googlecalendar',
     label: 'Google Calendar',
     logo: LOGO('googlecalendar'),
-    body: 'See your real meetings so Calkanban can schedule around them — never double-booked.',
+    body: 'See your real meetings so Skiduel can schedule around them — never double-booked.',
     syncFn: 'syncGoogleCalendar',
     connectorId: GCAL_CONNECTOR_ID,
   },

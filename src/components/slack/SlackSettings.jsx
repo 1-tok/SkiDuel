@@ -74,7 +74,7 @@ export default function SlackSettings({ open, onClose, settings, onSaved }) {
             Slack notifications
           </DialogTitle>
           <DialogDescription>
-            Choose the team channel where Calkanban posts your daily summary and automated notifications.
+            Choose the team channel where Skiduel posts your daily summary and automated notifications.
           </DialogDescription>
         </DialogHeader>
 
@@ -105,7 +105,7 @@ export default function SlackSettings({ open, onClose, settings, onSaved }) {
           {channelId && (
             <p className="text-[11px] text-muted-foreground flex items-center gap-1">
               <Lock className="w-3 h-3" />
-              For private channels, invite the bot first: <code className="font-mono">/invite @Calkanban</code>
+              For private channels, invite the bot first: <code className="font-mono">/invite @Skiduel</code>
             </p>
           )}
         </div>

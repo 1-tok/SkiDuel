@@ -18,7 +18,7 @@ export default function Hero() {
             <span className="text-primary">Let your calendar work for you.</span>
           </h1>
           <p className="mt-5 text-base sm:text-lg text-muted-foreground">
-            Calkanban unifies your inbox, calendar, notes, and kanban into a single drag-and-drop
+            Skiduel unifies your inbox, calendar, notes, and kanban into a single drag-and-drop
             workflow — so you stop juggling tabs and start finishing what matters.
           </p>
           <div className="mt-7 flex flex-wrap items-center justify-center gap-3">

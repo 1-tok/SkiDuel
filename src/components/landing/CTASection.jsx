@@ -31,13 +31,13 @@ export default function CTASection() {
       <footer className="border-t border-border">
         <div className="mx-auto max-w-6xl px-4 sm:px-6 py-10 flex flex-col sm:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <img src={LOGO} alt="Calkanban" className="h-6 w-6 rounded-md object-cover" />
-            <span className="text-sm font-medium">Calkanban</span>
+            <img src={LOGO} alt="Skiduel" className="h-6 w-6 rounded-md object-cover" />
+            <span className="text-sm font-medium">Skiduel</span>
           </div>
           <p className="text-xs text-muted-foreground text-center">
             Don't work for your calendar. Let your calendar work for you.
           </p>
-          <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Calkanban</p>
+          <p className="text-xs text-muted-foreground">© {new Date().getFullYear()} Skiduel</p>
         </div>
       </footer>
     </>

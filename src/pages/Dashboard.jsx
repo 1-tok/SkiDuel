@@ -153,7 +153,7 @@ export default function Dashboard() {
     const perm = await Notification.requestPermission();
     if (perm === 'granted') {
       toast.success('Notifications enabled');
-      try { new Notification('Calkanban', { body: 'Browser notifications are on.' }); } catch {}
+      try { new Notification('Skiduel', { body: 'Browser notifications are on.' }); } catch {}
     } else {
       toast.message('Notifications not enabled');
     }
@@ -987,10 +987,10 @@ export default function Dashboard() {
           >
             <img
               src="https://media.base44.com/images/public/6a0383b6225245c6dd116653/1946bb15d_ChatGPTImageAug6202612_27_39PM.png"
-              alt="Calkanban"
+              alt="Skiduel"
               className="w-6 h-6 rounded-md object-cover"
             />
-            <span className="text-sm font-semibold text-foreground tracking-tight">Calkanban</span>
+            <span className="text-sm font-semibold text-foreground tracking-tight">Skiduel</span>
           </button>
           <SearchBar emails={emails} events={events} onOpenEvent={setSearchEvent} onOpenEmail={handleOpenEmail} />
           <div className="flex items-center bg-muted rounded-lg p-0.5 gap-0.5">

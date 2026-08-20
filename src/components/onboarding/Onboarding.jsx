@@ -65,7 +65,7 @@ export default function Onboarding({ onComplete }) {
       <div className="px-6 pt-6">
         <div className="mx-auto max-w-lg">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold tracking-tight">Calkanban</span>
+            <span className="text-sm font-semibold tracking-tight">Skiduel</span>
             <span className="text-xs text-muted-foreground">
               Step {Math.min(step + 1, TOTAL)} of {TOTAL}
             </span>
@@ -86,7 +86,7 @@ export default function Onboarding({ onComplete }) {
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Sparkles className="h-8 w-8" />
               </div>
-              <h1 className="mt-6 text-3xl font-semibold tracking-tight">Welcome to Calkanban</h1>
+              <h1 className="mt-6 text-3xl font-semibold tracking-tight">Welcome to Skiduel</h1>
               <p className="mt-3 text-muted-foreground">
                 Let's connect your accounts so your calendar can start working for you. It takes about a minute.
               </p>
@@ -162,7 +162,7 @@ export default function Onboarding({ onComplete }) {
                 onClick={finish}
                 className="mt-8 inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90 transition-colors"
               >
-                Enter Calkanban <ArrowRight className="h-4 w-4" />
+                Enter Skiduel <ArrowRight className="h-4 w-4" />
               </button>
             </div>
           )}
