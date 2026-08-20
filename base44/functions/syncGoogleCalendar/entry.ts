@@ -90,7 +90,7 @@ async function syncOneCalendarAccount(base44, accessToken, existingByGCalId, exi
           is_visible: true,
           is_shared: cal.accessRole && cal.accessRole !== 'owner',
         });
-        existingVisByKey[key] = true;
+        existingVisByKey[key] = { is_shared: cal.accessRole && cal.accessRole !== 'owner' };
       } catch {}
     }
   }
@@ -103,7 +103,12 @@ async function syncOneCalendarAccount(base44, accessToken, existingByGCalId, exi
   for (const cal of calendars) {
     const calId = encodeURIComponent(cal.id);
     const calName = cal.summary || cal.id;
-    const isShared = cal.accessRole && cal.accessRole !== 'owner';
+    // A shared calendar can actually be the user's own secondary account layered
+    // onto their primary account's calendar list. Respect a manual "treat as owned"
+    // override on the CalendarVisibility record instead of trusting accessRole alone.
+    const visKey = `${accountEmail}|${calName}`;
+    const existingVisRec = existingVisByKey[visKey];
+    const isShared = existingVisRec ? existingVisRec.is_shared : (cal.accessRole && cal.accessRole !== 'owner');
 
     const syncKey = `googlecalendar_${accountEmail}_${cal.id}`;
     const syncStates = await base44.asServiceRole.entities.SyncState.filter({ service: syncKey });
@@ -192,7 +197,7 @@ Deno.serve(async (req) => {
 
     const existingVis = await base44.asServiceRole.entities.CalendarVisibility.list('-created_date', 200);
     const existingVisByKey = {};
-    for (const v of existingVis) existingVisByKey[`${v.source_account}|${v.calendar_name}`] = true;
+    for (const v of existingVis) existingVisByKey[`${v.source_account}|${v.calendar_name}`] = v;
 
     const results = [];
 

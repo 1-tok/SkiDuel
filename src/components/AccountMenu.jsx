@@ -10,13 +10,22 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
-import { Eye, EyeOff, Users, MessageSquare, LogOut } from 'lucide-react';
+import { Eye, EyeOff, Users, UserCheck, MessageSquare, LogOut } from 'lucide-react';
 
 function isVisible(visibility, account, name) {
   const v = visibility.find(
     (v) => (v.source_account || '') === (account || '') && v.calendar_name === name
   );
   return v ? v.is_visible : true;
+}
+
+// A calendar is "owned" when its visibility record explicitly marks it as not shared.
+// Falls back to the calendar's detected shared state when no manual override exists.
+function isOwned(visibility, account, name, detectedShared) {
+  const v = visibility.find(
+    (v) => (v.source_account || '') === (account || '') && v.calendar_name === name
+  );
+  return v ? !v.is_shared : !detectedShared;
 }
 
 export default function AccountMenu({ visibility, events, onOpenCommunications }) {
@@ -53,6 +62,26 @@ export default function AccountMenu({ visibility, events, onOpenCommunications }
           source_account: account || '',
           calendar_name: name,
           is_visible: makeVisible,
+        });
+      }
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['calendarVisibility'] }),
+  });
+
+  // Mark a shared calendar as the user's own (so it flows into Schedule/Kanban),
+  // or revert it to a shared calendar.
+  const toggleOwnership = useMutation({
+    mutationFn: async ({ account, name, makeOwned }) => {
+      const existing = visibility.find(
+        (v) => (v.source_account || '') === (account || '') && v.calendar_name === name
+      );
+      if (existing) {
+        await base44.entities.CalendarVisibility.update(existing.id, { is_shared: !makeOwned });
+      } else {
+        await base44.entities.CalendarVisibility.create({
+          source_account: account || '',
+          calendar_name: name,
+          is_shared: !makeOwned,
         });
       }
     },
@@ -102,22 +131,37 @@ export default function AccountMenu({ visibility, events, onOpenCommunications }
               </div>
               {cals.map((cal) => {
                 const visible = isVisible(visibility, account, cal.calendar_name);
+                const owned = isOwned(visibility, account, cal.calendar_name, cal.is_shared);
                 return (
-                  <button
+                  <div
                     key={cal.calendar_name}
-                    onClick={() => toggle.mutate({ account, name: cal.calendar_name, makeVisible: !visible })}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 transition-colors text-left"
+                    className="w-full flex items-center gap-1 px-3 py-1.5 hover:bg-muted/60 transition-colors"
                   >
-                    {visible ? (
-                      <Eye className="w-3.5 h-3.5 text-foreground/70 flex-shrink-0" />
-                    ) : (
-                      <EyeOff className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
-                    )}
-                    <span className={`text-xs truncate flex-1 ${visible ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
-                      {cal.calendar_name}
-                    </span>
-                    {cal.is_shared && <Users className="w-3 h-3 text-muted-foreground/60 flex-shrink-0" />}
-                  </button>
+                    <button
+                      onClick={() => toggle.mutate({ account, name: cal.calendar_name, makeVisible: !visible })}
+                      className="flex items-center gap-2 flex-1 text-left min-w-0"
+                    >
+                      {visible ? (
+                        <Eye className="w-3.5 h-3.5 text-foreground/70 flex-shrink-0" />
+                      ) : (
+                        <EyeOff className="w-3.5 h-3.5 text-muted-foreground/50 flex-shrink-0" />
+                      )}
+                      <span className={`text-xs truncate flex-1 ${visible ? 'text-foreground' : 'text-muted-foreground line-through'}`}>
+                        {cal.calendar_name}
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => toggleOwnership.mutate({ account, name: cal.calendar_name, makeOwned: !owned })}
+                      title={owned ? 'Treating as my own calendar' : 'Shared calendar — click to treat as my own'}
+                      className="flex-shrink-0 p-0.5"
+                    >
+                      {owned ? (
+                        <UserCheck className="w-3.5 h-3.5 text-primary" />
+                      ) : (
+                        <Users className="w-3 h-3 text-muted-foreground/60" />
+                      )}
+                    </button>
+                  </div>
                 );
               })}
             </div>
