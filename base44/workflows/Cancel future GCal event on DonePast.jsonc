@@ -1,0 +1,37 @@
+{
+  "name": "Cancel future GCal event on Done/Past",
+  "description": "When an item is marked Done or moved to Past and its end time is still in the future, cancel the corresponding Google Calendar event so it shows as cancelled.",
+  "trigger": {
+    "condition": "${ ((.trigger.changed_fields | index(\"kanban_column\") != null) or (.trigger.changed_fields | index(\"status\") != null)) }",
+    "config": {
+      "trigger_type": "entity",
+      "events": [
+        "update"
+      ],
+      "entity_name": "CalendarEvent"
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "cancel_future_gcal_event_on_done_past",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "cancelGcalIfDone",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "cancelGcalIfDone"
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "name": "Slack Messages to Communications",
+  "description": "Ingests Slack channel messages into the Communications feed via handleSlackWebhook",
+  "trigger": {
+    "condition": "${ (.trigger.data.event.channel == \"C0B3JT1680N\" or .trigger.data.event.channel == \"C0B3NQ9VA9F\" or .trigger.data.event.channel == \"C0B4F986456\") }",
+    "config": {
+      "trigger_type": "connector",
+      "events": [
+        "message.channels",
+        "message.groups"
+      ],
+      "integration_type": "slackbot",
+      "resource_id": null
+    }
+  },
+  "definition": {
+    "document": {
+      "dsl": "1.0.0",
+      "name": "slack_messages_to_communications",
+      "version": "1.0",
+      "namespace": "base44"
+    },
+    "do": [
+      {
+        "run_function": {
+          "call": "invoke_backend_function",
+          "with": {
+            "function_name": "handleSlackWebhook",
+            "args": {}
+          },
+          "then": "end"
+        }
+      }
+    ]
+  },
+  "x-base44-migrated-from-automation": {
+    "legacy_payload_function": "handleSlackWebhook"
+  }
+}
